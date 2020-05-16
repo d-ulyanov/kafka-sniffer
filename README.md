@@ -51,3 +51,13 @@ Send & receive messages
 kubectl -n kafka run kafka-producer -ti --image=strimzi/kafka:0.17.0-kafka-2.4.0 --rm=true --restart=Never -- bin/kafka-console-producer.sh --broker-list my-cluster-kafka-bootstrap:9092 --topic my-topic
 kubectl -n kafka run kafka-consumer -ti --image=strimzi/kafka:0.17.0-kafka-2.4.0 --rm=true --restart=Never -- bin/kafka-console-consumer.sh --bootstrap-server my-cluster-kafka-bootstrap:9092 --topic my-topic --from-beginning
 ```
+
+Port-forwarding for local development:
+```yaml
+kubectl port-forward service/my-cluster-kafka-brokers 9092
+```
+
+And probably you'll need to add this row to `/etc/hosts`
+```yaml
+127.0.0.1   my-cluster-kafka-0.my-cluster-kafka-brokers.kafka.svc
+```
