@@ -1,6 +1,9 @@
 # Kafka sniffer
 
-It's made for detection who producing in particular topics.
+It's made for detection how producers and topics related 
+(usually, it's not possible to know if auth is disabled on Kafka cluster).
+
+Kafka protocol: https://kafka.apache.org/protocol
 
 
 Example:
@@ -25,4 +28,11 @@ Example output:
 2020/05/16 16:26:04 got request, key: 0, version: 0, correlationID: 135, clientID: sarama
 2020/05/16 16:26:04 client 127.0.0.1:60423 wrote to topic mytopic
 2020/05/16 16:26:05 got EOF - stop reading from stream
+```
+
+## Run as docker container
+
+```
+docker build . -t kafka-sniffer
+docker run --rm --network host kafka-sniffer:latest -i lo0
 ```
