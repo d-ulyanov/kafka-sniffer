@@ -38,10 +38,10 @@ func main() {
 	streamPool := tcpassembly.NewStreamPool(&stream.KafkaStreamFactory{})
 	assembler := tcpassembly.NewAssembler(streamPool)
 
-	// Limit memory usage by auto-flushing connection state if we get over 100K
-	// packets in memory, or over 1000 for a single stream.
-	assembler.MaxBufferedPagesTotal = 100000
-	assembler.MaxBufferedPagesPerConnection = 1000
+	// Auto-flushing connection state to get packets
+	// without waiting SYN
+	assembler.MaxBufferedPagesTotal = 1000
+	assembler.MaxBufferedPagesPerConnection = 1
 
 	log.Println("reading in packets")
 
