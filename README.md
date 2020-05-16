@@ -30,7 +30,7 @@ Example output:
 2020/05/16 16:26:05 got EOF - stop reading from stream
 ```
 
-## Run as docker container
+## Run as a Docker container
 
 ```
 docker build . -t kafka-sniffer
