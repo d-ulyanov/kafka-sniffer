@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"log"
+	"net/http"
 	"time"
 
+	"github.com/d-ulyanov/kafka-sniffer/metrics"
 	"github.com/d-ulyanov/kafka-sniffer/stream"
 
 	"github.com/google/gopacket"
@@ -12,6 +14,12 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/tcpassembly"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
+
+const (
+	defaultListenAddr = ":9870"
 )
 
 var iface = flag.String("i", "eth0", "Interface to get packets from")
@@ -19,10 +27,21 @@ var dstport = flag.Uint("p", 9092, "Kafka broker port") // todo: use -f tcp and 
 var snaplen = flag.Int("s", 16<<10, "SnapLen for pcap packet capture")
 var filter = flag.String("f", "tcp", "BPF filter for pcap")
 var verbose = flag.Bool("v", false, "Logs every packet in great detail")
+var listenAddr = flag.String("addr", defaultListenAddr, "Address on which sniffer listen the requests")
 
 func main() {
 	defer util.Run()()
 	log.Printf("starting capture on interface %q", *iface)
+
+	metricsStorage := metrics.NewStorage(prometheus.DefaultRegisterer)
+
+	// init telemetry
+	go func() {
+		http.Handle("/metrics", metrics.NewHandler(promhttp.Handler()))
+		if err := http.ListenAndServe(*listenAddr, nil); err != nil {
+			panic(err)
+		}
+	}()
 
 	// Set up pcap packet capture
 	handle, err := pcap.OpenLive(*iface, int32(*snaplen), true, pcap.BlockForever)
@@ -35,7 +54,7 @@ func main() {
 	}
 
 	// Set up assembly
-	streamPool := tcpassembly.NewStreamPool(&stream.KafkaStreamFactory{})
+	streamPool := tcpassembly.NewStreamPool(stream.NewKafkaStreamFactory(metricsStorage))
 	assembler := tcpassembly.NewAssembler(streamPool)
 
 	// Auto-flushing connection state to get packets

@@ -15,7 +15,7 @@ go run cmd/producer/main.go -brokers 127.0.0.1:9092
 // Run sniffer on net iface (loopback or usually, eth0)
 go run cmd/sniffer/main.go -i=lo0
 
-OR with debug info:
+// OR with debug info:
 go run cmd/sniffer/main.go -i=lo0 -assembly_debug_log=false
 ```
 
