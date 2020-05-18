@@ -15,7 +15,7 @@ import (
 )
 
 var iface = flag.String("i", "eth0", "Interface to get packets from")
-var dstport = flag.Uint("p", 9092, "Kafka broker port")
+var dstport = flag.Uint("p", 9092, "Kafka broker port") // todo: use -f tcp and dst port 9092
 var snaplen = flag.Int("s", 16<<10, "SnapLen for pcap packet capture")
 var filter = flag.String("f", "tcp", "BPF filter for pcap")
 var verbose = flag.Bool("v", false, "Logs every packet in great detail")
@@ -66,6 +66,7 @@ func main() {
 
 			tcp := packet.TransportLayer().(*layers.TCP)
 
+			// todo: remove it (because port filter is in BFP)
 			if tcp.DstPort != layers.TCPPort(*dstport) {
 				if *verbose {
 					log.Println("Unusable dst port:" + tcp.DstPort.String())
