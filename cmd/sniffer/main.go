@@ -17,6 +17,7 @@ import (
 	"github.com/google/gopacket/tcpassembly"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	_ "net/http/pprof"
 )
 
 const (
