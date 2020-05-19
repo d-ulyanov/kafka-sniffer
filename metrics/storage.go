@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	namespace = "sniffer"
+	namespace = "kafka_sniffer"
 )
 
 // Storage contains prometheus metrics that have expiration time. When expiration time is succeeded,
@@ -20,6 +20,8 @@ type Storage struct {
 
 	producerTopicRelationInfo *metric
 	consumerTopicRelationInfo *metric
+
+	requestsReceivedTotal prometheus.Counter
 }
 
 func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Storage {
@@ -36,11 +38,18 @@ func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Sto
 			Name:      "consumer_topic_relation_info",
 			Help:      "Relation information between consumer and topic",
 		}, []string{"consumer", "topic"}), expireTime),
+
+		requestsReceivedTotal: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "requests_received_total",
+			Help:      "Total received requests",
+		}),
 	}
 
 	s.registerer.MustRegister(
 		s.producerTopicRelationInfo.promMetric,
 		s.consumerTopicRelationInfo.promMetric,
+		s.requestsReceivedTotal,
 	)
 
 	go s.producerTopicRelationInfo.runExpiration()
@@ -55,6 +64,10 @@ func (s *Storage) AddProducerTopicRelationInfo(producer, topic string) {
 
 func (s *Storage) AddConsumerTopicRelationInfo(consumer, topic string) {
 	s.consumerTopicRelationInfo.update(consumer, topic)
+}
+
+func (s *Storage) IncReceivedTotal() {
+	s.requestsReceivedTotal.Inc()
 }
 
 // metric contains expiration functionality

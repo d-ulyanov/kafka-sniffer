@@ -60,6 +60,9 @@ func (h *KafkaStream) run() {
 			continue
 		}
 
+		// increase count of received requests
+		h.metricsStorage.IncReceivedTotal()
+
 		log.Printf("got request, key: %d, version: %d, correlationID: %d, clientID: %s\n", req.Key, req.Version, req.CorrelationID, req.ClientID)
 
 		switch body := req.Body.(type) {
