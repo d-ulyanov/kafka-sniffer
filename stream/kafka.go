@@ -65,11 +65,17 @@ func (h *KafkaStream) run() {
 
 		log.Printf("got request, key: %d, version: %d, correlationID: %d, clientID: %s\n", req.Key, req.Version, req.CorrelationID, req.ClientID)
 
-		if produceReq, ok := req.Body.(*kafka.ProduceRequest); ok {
-			for _, topic := range produceReq.ExtractTopics() {
+		switch body := req.Body.(type) {
+		case *kafka.ProduceRequest:
+			for _, topic := range body.ExtractTopics() {
 				log.Printf("client %s:%s wrote to topic %s", h.net.Src(), h.transport.Src(), topic)
 
-				h.metricsStorage.SetProducerTopicRelationInfoValue(h.net.Src().String(), topic)
+				// add producer and topic relation info into metric
+				h.metricsStorage.AddProducerTopicRelationInfo(h.net.Src().String(), topic)
+			}
+		case *kafka.FetchRequest:
+			for _, topic := range body.ExtractTopics() {
+				h.metricsStorage.AddConsumerTopicRelationInfo(h.net.Src().String(), topic)
 			}
 		}
 	}

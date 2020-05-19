@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -105,6 +106,8 @@ func main() {
 }
 
 func runTelemetry() {
+	fmt.Printf("serving metrics on %s\n", *listenAddr)
+
 	http.Handle("/metrics", promhttp.Handler())
 	if err := http.ListenAndServe(*listenAddr, nil); err != nil {
 		panic(err)
