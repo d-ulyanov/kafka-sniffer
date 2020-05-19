@@ -48,9 +48,6 @@ func (h *KafkaStream) run() {
 
 	buf := bufio.NewReaderSize(&h.r, 2<<15) // 65k
 
-	go func() {
-
-	}()
 	for {
 		req, _, err := kafka.DecodeRequest(buf)
 		if err == io.EOF {
