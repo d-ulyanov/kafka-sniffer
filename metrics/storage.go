@@ -24,6 +24,7 @@ type Storage struct {
 	requestsReceivedTotal    prometheus.Counter
 	requestDecodeTimeSeconds prometheus.Summary
 	requestSizeBytes         prometheus.Summary
+	connectionsTotal         prometheus.Gauge
 }
 
 func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Storage {
@@ -58,6 +59,11 @@ func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Sto
 			Help:       "Request size in bytes",
 			Objectives: map[float64]float64{0.9: 0.01, 0.95: 0.005},
 		}),
+		connectionsTotal: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Name:      "connections_count",
+			Help:      "Connections count",
+		}),
 	}
 
 	s.registerer.MustRegister(
@@ -66,6 +72,7 @@ func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Sto
 		s.requestsReceivedTotal,
 		s.requestDecodeTimeSeconds,
 		s.requestSizeBytes,
+		s.connectionsTotal,
 	)
 
 	go s.producerTopicRelationInfo.runExpiration()
@@ -92,6 +99,10 @@ func (s *Storage) ObserveRequestDecodeTimeSeconds(value float64) {
 
 func (s *Storage) ObserverRequestSizeBytes(value float64) {
 	s.requestSizeBytes.Observe(value)
+}
+
+func (s *Storage) IncConnectionsTotal() {
+	s.connectionsTotal.Inc()
 }
 
 // metric contains expiration functionality

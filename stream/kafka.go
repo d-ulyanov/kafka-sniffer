@@ -44,6 +44,8 @@ type KafkaStream struct {
 }
 
 func (h *KafkaStream) run() {
+	h.metricsStorage.IncConnectionsTotal()
+
 	log.Printf("%s:%s -> %s:%s", h.net.Src(), h.transport.Src(), h.net.Dst(), h.transport.Dst())
 	log.Printf("%s:%s -> %s:%s", h.net.Dst(), h.transport.Dst(), h.net.Src(), h.transport.Src())
 
