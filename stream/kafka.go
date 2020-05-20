@@ -51,7 +51,7 @@ func (h *KafkaStream) run() {
 
 	for {
 		start := time.Now()
-		req, _, err := kafka.DecodeRequest(buf)
+		req, readBytes, err := kafka.DecodeRequest(buf)
 		spentTime := float64(time.Since(start)) / float64(time.Second)
 
 		if err == io.EOF {
@@ -64,6 +64,9 @@ func (h *KafkaStream) run() {
 
 		// set success decoding spent time
 		h.metricsStorage.SetRequestDecodeTimeSeconds("success", spentTime)
+
+		// set the size of request
+		h.metricsStorage.ObserverRequestSizeBytes(float64(readBytes))
 
 		if err != nil {
 			// important! Need to reset buffer if some error occur
