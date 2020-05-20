@@ -22,7 +22,7 @@ type Storage struct {
 	consumerTopicRelationInfo *metric
 
 	requestsReceivedTotal    prometheus.Counter
-	requestDecodeTimeSeconds *prometheus.GaugeVec
+	requestDecodeTimeSeconds prometheus.Summary
 	requestSizeBytes         prometheus.Summary
 }
 
@@ -46,11 +46,12 @@ func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Sto
 			Name:      "requests_received_total",
 			Help:      "Total received requests",
 		}),
-		requestDecodeTimeSeconds: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "request_decode_time_seconds",
-			Help:      "Spent time to decode request in seconds",
-		}, []string{"status"}),
+		requestDecodeTimeSeconds: prometheus.NewSummary(prometheus.SummaryOpts{
+			Namespace:  namespace,
+			Name:       "request_decode_time_seconds",
+			Help:       "Spent time to decode request in seconds",
+			Objectives: map[float64]float64{0.9: 0.01, 0.95: 0.005},
+		}),
 		requestSizeBytes: prometheus.NewSummary(prometheus.SummaryOpts{
 			Namespace:  namespace,
 			Name:       "request_size_bytes",
@@ -85,8 +86,8 @@ func (s *Storage) IncReceivedTotal() {
 	s.requestsReceivedTotal.Inc()
 }
 
-func (s *Storage) SetRequestDecodeTimeSeconds(status string, value float64) {
-	s.requestDecodeTimeSeconds.WithLabelValues(status).Set(value)
+func (s *Storage) ObserveRequestDecodeTimeSeconds(value float64) {
+	s.requestDecodeTimeSeconds.Observe(value)
 }
 
 func (s *Storage) ObserverRequestSizeBytes(value float64) {
