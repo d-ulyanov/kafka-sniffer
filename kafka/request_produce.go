@@ -1,6 +1,5 @@
 package kafka
 
-
 // RequiredAcks is used in Produce Requests to tell the broker how many replica acknowledgements
 // it must see before responding. Any of the constants defined here are valid. On broker versions
 // prior to 0.8.2.0 any other positive int16 is also valid (the broker will wait for that many
@@ -63,15 +62,10 @@ func (r *ProduceRequest) Decode(pd PacketDecoder, version int16) error {
 			if err != nil {
 				return err
 			}
-			recordsDecoder, err := pd.getSubset(int(size))
-			if err != nil {
-				return err
-			}
-			var records Records
-			if err := records.Decode(recordsDecoder); err != nil {
-				return err
-			}
-			r.records[topic][partition] = records
+
+			// discard size bytes and move to the next size
+			pd.discard(int(size))
+			r.records[topic][partition] = Records{}
 		}
 	}
 

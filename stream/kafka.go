@@ -77,6 +77,8 @@ func (h *KafkaStream) run() {
 			}
 		case *kafka.FetchRequest:
 			for _, topic := range body.ExtractTopics() {
+				log.Printf("client %s:%s read from topic %s", h.net.Src(), h.transport.Src(), topic)
+
 				h.metricsStorage.AddConsumerTopicRelationInfo(h.net.Src().String(), topic)
 			}
 		}
