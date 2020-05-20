@@ -2,9 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"net/http"
 	"time"
 
+	"github.com/d-ulyanov/kafka-sniffer/metrics"
 	"github.com/d-ulyanov/kafka-sniffer/stream"
 
 	"github.com/google/gopacket"
@@ -12,17 +15,32 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/tcpassembly"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	_ "net/http/pprof"
 )
 
-var iface = flag.String("i", "eth0", "Interface to get packets from")
-var dstport = flag.Uint("p", 9092, "Kafka broker port") // todo: use -f tcp and dst port 9092
-var snaplen = flag.Int("s", 16<<10, "SnapLen for pcap packet capture")
-var filter = flag.String("f", "tcp", "BPF filter for pcap")
-var verbose = flag.Bool("v", false, "Logs every packet in great detail")
+const (
+	defaultListenAddr = ":9870"
+	defaultExpireTime = 5 * time.Minute
+)
+
+var (
+	iface      = flag.String("i", "eth0", "Interface to get packets from")
+	dstport    = flag.Uint("p", 9092, "Kafka broker port") // todo: use -f tcp and dst port 9092
+	snaplen    = flag.Int("s", 16<<10, "SnapLen for pcap packet capture")
+	filter     = flag.String("f", "tcp", "BPF filter for pcap")
+	verbose    = flag.Bool("v", false, "Logs every packet in great detail")
+	listenAddr = flag.String("addr", defaultListenAddr, "Address on which sniffer listen the requests")
+	expireTime = flag.Duration("metrics.expire-time", defaultExpireTime, "Expiration time of metric.")
+)
 
 func main() {
 	defer util.Run()()
 	log.Printf("starting capture on interface %q", *iface)
+
+	// run telemetry
+	go runTelemetry()
 
 	// Set up pcap packet capture
 	handle, err := pcap.OpenLive(*iface, int32(*snaplen), true, pcap.BlockForever)
@@ -34,8 +52,11 @@ func main() {
 		panic(err)
 	}
 
+	// init metrics storage
+	metricsStorage := metrics.NewStorage(prometheus.DefaultRegisterer, *expireTime)
+
 	// Set up assembly
-	streamPool := tcpassembly.NewStreamPool(&stream.KafkaStreamFactory{})
+	streamPool := tcpassembly.NewStreamPool(stream.NewKafkaStreamFactory(metricsStorage))
 	assembler := tcpassembly.NewAssembler(streamPool)
 
 	// Auto-flushing connection state to get packets
@@ -82,5 +103,14 @@ func main() {
 			assembler.FlushOlderThan(time.Now().Add(time.Minute * -2))
 			log.Println("---- FLUSHING ----")
 		}
+	}
+}
+
+func runTelemetry() {
+	fmt.Printf("serving metrics on %s\n", *listenAddr)
+
+	http.Handle("/metrics", promhttp.Handler())
+	if err := http.ListenAndServe(*listenAddr, nil); err != nil {
+		panic(err)
 	}
 }

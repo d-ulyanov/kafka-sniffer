@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -31,20 +32,26 @@ type Request struct {
 
 	CorrelationID int32
 
-	ClientID      string
+	ClientID string
 
 	Body ProtocolBody
+
+	UsePreparedKeyVersion bool
 }
 
 func (r *Request) Decode(pd PacketDecoder) (err error) {
-	r.Key, err = pd.getInt16() // +2 bytes
-	if err != nil {
-		return err
+	if !r.UsePreparedKeyVersion {
+		r.Key, err = pd.getInt16() // +2 bytes
+		if err != nil {
+			return err
+		}
 	}
 
-	r.Version, err = pd.getInt16() // +2 bytes
-	if err != nil {
-		return err
+	if !r.UsePreparedKeyVersion {
+		r.Version, err = pd.getInt16() // +2 bytes
+		if err != nil {
+			return err
+		}
 	}
 
 	r.CorrelationID, err = pd.getInt32() // +4 bytes
@@ -56,7 +63,6 @@ func (r *Request) Decode(pd PacketDecoder) (err error) {
 	if err != nil {
 		return err
 	}
-
 
 	body := allocateBody(r.Key, r.Version)
 
@@ -77,32 +83,56 @@ func (r *Request) Decode(pd PacketDecoder) (err error) {
 	return r.Body.Decode(pd, r.Version)
 }
 
+func DecodeLength(encoded []byte) int32 {
+	return int32(binary.BigEndian.Uint32(encoded[:4]))
+}
+
+func DecodeKey(encoded []byte) int16 {
+	return int16(binary.BigEndian.Uint16(encoded[4:6]))
+}
+
+func DecodeVersion(encoded []byte) int16 {
+	return int16(binary.BigEndian.Uint16(encoded[6:]))
+}
+
 func DecodeRequest(r io.Reader) (*Request, int, error) {
 	var (
-		bytesRead   int
-		lengthBytes = make([]byte, 4)
+		needReadBytes = 8
+		readBytes     = make([]byte, needReadBytes)
 	)
 
-	if _, err := io.ReadFull(r, lengthBytes); err != nil {
-		return nil, bytesRead, err
+	if _, err := io.ReadFull(r, readBytes); err != nil {
+		return nil, needReadBytes, err
 	}
 
-	bytesRead += len(lengthBytes)
-	length := int32(binary.BigEndian.Uint32(lengthBytes))
+	if len(readBytes) != needReadBytes {
+		return nil, len(readBytes), errors.New("could define key, version")
+	}
+
+	length := DecodeLength(readBytes) - 4
+	key := DecodeKey(readBytes)
+	version := DecodeVersion(readBytes)
+
+	if protocol := allocateBody(key, version); protocol == nil {
+		return nil, needReadBytes, errors.New("unsupported protocol")
+	}
 
 	if length <= 4 || length > MaxRequestSize {
-		return nil, bytesRead, PacketDecodingError{fmt.Sprintf("message of length %d too large or too small", length)}
+		return nil, needReadBytes, PacketDecodingError{fmt.Sprintf("message of length %d too large or too small", length)}
 	}
 
 	encodedReq := make([]byte, length)
 	if _, err := io.ReadFull(r, encodedReq); err != nil {
-		return nil, bytesRead, err
+		return nil, needReadBytes, err
 	}
 
-	bytesRead += len(encodedReq)
+	bytesRead := needReadBytes + len(encodedReq)
 
 	req := &Request{
-		BodyLength: length,
+		BodyLength:            length,
+		Key:                   key,
+		Version:               version,
+		UsePreparedKeyVersion: true,
 	}
 
 	if err := Decode(encodedReq, req); err != nil {
@@ -116,68 +146,68 @@ func allocateBody(key, version int16) ProtocolBody {
 	switch key {
 	case 0:
 		return &ProduceRequest{}
-	//case 1:
-	//	return &FetchRequest{Version: version}
-	//case 2:
-	//	return &OffsetRequest{Version: version}
-	//case 3:
-	//	return &MetadataRequest{}
-	//case 8:
-	//	return &OffsetCommitRequest{Version: version}
-	//case 9:
-	//	return &OffsetFetchRequest{}
-	//case 10:
-	//	return &FindCoordinatorRequest{}
-	//case 11:
-	//	return &JoinGroupRequest{}
-	//case 12:
-	//	return &HeartbeatRequest{}
-	//case 13:
-	//	return &LeaveGroupRequest{}
-	//case 14:
-	//	return &SyncGroupRequest{}
-	//case 15:
-	//	return &DescribeGroupsRequest{}
-	//case 16:
-	//	return &ListGroupsRequest{}
-	//case 17:
-	//	return &SaslHandshakeRequest{}
-	//case 18:
-	//	return &ApiVersionsRequest{}
-	//case 19:
-	//	return &CreateTopicsRequest{}
-	//case 20:
-	//	return &DeleteTopicsRequest{}
-	//case 21:
-	//	return &DeleteRecordsRequest{}
-	//case 22:
-	//	return &InitProducerIDRequest{}
-	//case 24:
-	//	return &AddPartitionsToTxnRequest{}
-	//case 25:
-	//	return &AddOffsetsToTxnRequest{}
-	//case 26:
-	//	return &EndTxnRequest{}
-	//case 28:
-	//	return &TxnOffsetCommitRequest{}
-	//case 29:
-	//	return &DescribeAclsRequest{}
-	//case 30:
-	//	return &CreateAclsRequest{}
-	//case 31:
-	//	return &DeleteAclsRequest{}
-	//case 32:
-	//	return &DescribeConfigsRequest{}
-	//case 33:
-	//	return &AlterConfigsRequest{}
-	//case 35:
-	//	return &DescribeLogDirsRequest{}
-	//case 36:
-	//	return &SaslAuthenticateRequest{}
-	//case 37:
-	//	return &CreatePartitionsRequest{}
-	//case 42:
-	//	return &DeleteGroupsRequest{}
+	case 1:
+		return &FetchRequest{Version: version}
+		//case 2:
+		//	return &OffsetRequest{Version: version}
+		//case 3:
+		//	return &MetadataRequest{}
+		//case 8:
+		//	return &OffsetCommitRequest{Version: version}
+		//case 9:
+		//	return &OffsetFetchRequest{}
+		//case 10:
+		//	return &FindCoordinatorRequest{}
+		//case 11:
+		//	return &JoinGroupRequest{}
+		//case 12:
+		//	return &HeartbeatRequest{}
+		//case 13:
+		//	return &LeaveGroupRequest{}
+		//case 14:
+		//	return &SyncGroupRequest{}
+		//case 15:
+		//	return &DescribeGroupsRequest{}
+		//case 16:
+		//	return &ListGroupsRequest{}
+		//case 17:
+		//	return &SaslHandshakeRequest{}
+		//case 18:
+		//	return &ApiVersionsRequest{}
+		//case 19:
+		//	return &CreateTopicsRequest{}
+		//case 20:
+		//	return &DeleteTopicsRequest{}
+		//case 21:
+		//	return &DeleteRecordsRequest{}
+		//case 22:
+		//	return &InitProducerIDRequest{}
+		//case 24:
+		//	return &AddPartitionsToTxnRequest{}
+		//case 25:
+		//	return &AddOffsetsToTxnRequest{}
+		//case 26:
+		//	return &EndTxnRequest{}
+		//case 28:
+		//	return &TxnOffsetCommitRequest{}
+		//case 29:
+		//	return &DescribeAclsRequest{}
+		//case 30:
+		//	return &CreateAclsRequest{}
+		//case 31:
+		//	return &DeleteAclsRequest{}
+		//case 32:
+		//	return &DescribeConfigsRequest{}
+		//case 33:
+		//	return &AlterConfigsRequest{}
+		//case 35:
+		//	return &DescribeLogDirsRequest{}
+		//case 36:
+		//	return &SaslAuthenticateRequest{}
+		//case 37:
+		//	return &CreatePartitionsRequest{}
+		//case 42:
+		//	return &DeleteGroupsRequest{}
 	}
 	return nil
 }
