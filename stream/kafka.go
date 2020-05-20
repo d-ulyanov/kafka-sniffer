@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"log"
+	"time"
 
 	"github.com/d-ulyanov/kafka-sniffer/kafka"
 	"github.com/d-ulyanov/kafka-sniffer/metrics"
@@ -49,11 +50,20 @@ func (h *KafkaStream) run() {
 	buf := bufio.NewReaderSize(&h.r, 2<<15) // 65k
 
 	for {
+		start := time.Now()
 		req, _, err := kafka.DecodeRequest(buf)
+		spentTime := float64(time.Since(start)) / float64(time.Second)
+
 		if err == io.EOF {
+			// set failed decoding spent time
+			h.metricsStorage.SetRequestDecodeTimeSeconds("error", spentTime)
+
 			log.Println("got EOF - stop reading from stream")
 			return
 		}
+
+		// set success decoding spent time
+		h.metricsStorage.SetRequestDecodeTimeSeconds("success", spentTime)
 
 		if err != nil {
 			// important! Need to reset buffer if some error occur

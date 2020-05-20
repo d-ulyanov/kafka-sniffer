@@ -21,7 +21,8 @@ type Storage struct {
 	producerTopicRelationInfo *metric
 	consumerTopicRelationInfo *metric
 
-	requestsReceivedTotal prometheus.Counter
+	requestsReceivedTotal    prometheus.Counter
+	requestDecodeTimeSeconds *prometheus.GaugeVec
 }
 
 func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Storage {
@@ -44,12 +45,18 @@ func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Sto
 			Name:      "requests_received_total",
 			Help:      "Total received requests",
 		}),
+		requestDecodeTimeSeconds: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Name:      "request_decode_time_seconds",
+			Help:      "Spent time to decode request in seconds",
+		}, []string{"status"}),
 	}
 
 	s.registerer.MustRegister(
 		s.producerTopicRelationInfo.promMetric,
 		s.consumerTopicRelationInfo.promMetric,
 		s.requestsReceivedTotal,
+		s.requestDecodeTimeSeconds,
 	)
 
 	go s.producerTopicRelationInfo.runExpiration()
@@ -68,6 +75,10 @@ func (s *Storage) AddConsumerTopicRelationInfo(consumer, topic string) {
 
 func (s *Storage) IncReceivedTotal() {
 	s.requestsReceivedTotal.Inc()
+}
+
+func (s *Storage) SetRequestDecodeTimeSeconds(status string, value float64) {
+	s.requestDecodeTimeSeconds.WithLabelValues(status).Set(value)
 }
 
 // metric contains expiration functionality
