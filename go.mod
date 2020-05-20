@@ -9,7 +9,9 @@ require (
 	github.com/google/gopacket v1.1.17
 	github.com/klauspost/compress v1.9.8
 	github.com/pierrec/lz4 v2.4.1+incompatible
+	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.6.0
 	github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563
 	golang.org/x/net v0.0.0-20200513185701-a91f0712d120 // indirect
+	google.golang.org/protobuf v1.23.0
 )

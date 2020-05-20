@@ -56,6 +56,8 @@ func (h *KafkaStream) run() {
 		}
 
 		if err != nil {
+			// important! Need to reset buffer if some error occur
+			buf.Reset(&h.r)
 			log.Printf("unable to read request to Broker - skipping stream: %s\n", err)
 			continue
 		}
