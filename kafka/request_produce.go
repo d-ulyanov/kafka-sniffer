@@ -63,9 +63,15 @@ func (r *ProduceRequest) Decode(pd PacketDecoder, version int16) error {
 				return err
 			}
 
-			// discard size bytes and move to the next size
-			pd.discard(int(size))
-			r.records[topic][partition] = Records{}
+			recordsDecoder, err := pd.getSubset(int(size))
+			if err != nil {
+				return err
+			}
+			var records Records
+			if err := records.Decode(recordsDecoder); err != nil {
+				return err
+			}
+			r.records[topic][partition] = records
 		}
 	}
 
