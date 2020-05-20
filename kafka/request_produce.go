@@ -71,7 +71,8 @@ func (r *ProduceRequest) Decode(pd PacketDecoder, version int16) error {
 			if err := records.Decode(recordsDecoder); err != nil {
 				return err
 			}
-			r.records[topic][partition] = records
+			// @todo small check
+			r.records[topic][partition] = Records{}
 		}
 	}
 

@@ -52,6 +52,7 @@ func (h *KafkaStream) run() {
 	for {
 		start := time.Now()
 		req, readBytes, err := kafka.DecodeRequest(buf)
+		buf.Reset(&h.r)
 
 		// calculate decode time
 		spentTime := float64(time.Since(start)) / float64(time.Second)
@@ -68,8 +69,6 @@ func (h *KafkaStream) run() {
 		h.metricsStorage.ObserverRequestSizeBytes(float64(readBytes))
 
 		if err != nil {
-			// important! Need to reset buffer if some error occur
-			buf.Reset(&h.r)
 			log.Printf("unable to read request to Broker - skipping stream: %s\n", err)
 			continue
 		}
