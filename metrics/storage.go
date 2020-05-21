@@ -20,11 +20,6 @@ type Storage struct {
 
 	producerTopicRelationInfo *metric
 	consumerTopicRelationInfo *metric
-
-	requestsReceivedTotal    prometheus.Counter
-	requestDecodeTimeSeconds prometheus.Summary
-	requestSizeBytes         prometheus.Summary
-	connectionsTotal         prometheus.Gauge
 }
 
 func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Storage {
@@ -41,38 +36,11 @@ func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Sto
 			Name:      "consumer_topic_relation_info",
 			Help:      "Relation information between consumer and topic",
 		}, []string{"consumer", "topic"}), expireTime),
-
-		requestsReceivedTotal: prometheus.NewCounter(prometheus.CounterOpts{
-			Namespace: namespace,
-			Name:      "requests_received_total",
-			Help:      "Total received requests",
-		}),
-		requestDecodeTimeSeconds: prometheus.NewSummary(prometheus.SummaryOpts{
-			Namespace:  namespace,
-			Name:       "request_decode_time_seconds",
-			Help:       "Spent time to decode request in seconds",
-			Objectives: map[float64]float64{0.9: 0.01, 0.95: 0.005},
-		}),
-		requestSizeBytes: prometheus.NewSummary(prometheus.SummaryOpts{
-			Namespace:  namespace,
-			Name:       "request_size_bytes",
-			Help:       "Request size in bytes",
-			Objectives: map[float64]float64{0.9: 0.01, 0.95: 0.005},
-		}),
-		connectionsTotal: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "connections_count",
-			Help:      "Connections count",
-		}),
 	}
 
 	s.registerer.MustRegister(
 		s.producerTopicRelationInfo.promMetric,
 		s.consumerTopicRelationInfo.promMetric,
-		s.requestsReceivedTotal,
-		s.requestDecodeTimeSeconds,
-		s.requestSizeBytes,
-		s.connectionsTotal,
 	)
 
 	go s.producerTopicRelationInfo.runExpiration()
@@ -87,22 +55,6 @@ func (s *Storage) AddProducerTopicRelationInfo(producer, topic string) {
 
 func (s *Storage) AddConsumerTopicRelationInfo(consumer, topic string) {
 	s.consumerTopicRelationInfo.update(consumer, topic)
-}
-
-func (s *Storage) IncReceivedTotal() {
-	s.requestsReceivedTotal.Inc()
-}
-
-func (s *Storage) ObserveRequestDecodeTimeSeconds(value float64) {
-	s.requestDecodeTimeSeconds.Observe(value)
-}
-
-func (s *Storage) ObserverRequestSizeBytes(value float64) {
-	s.requestSizeBytes.Observe(value)
-}
-
-func (s *Storage) IncConnectionsTotal() {
-	s.connectionsTotal.Inc()
 }
 
 // metric contains expiration functionality

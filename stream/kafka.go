@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"io"
 	"log"
-	"time"
 
 	"github.com/d-ulyanov/kafka-sniffer/kafka"
 	"github.com/d-ulyanov/kafka-sniffer/metrics"
@@ -17,10 +16,11 @@ import (
 // KafkaStreamFactory implements tcpassembly.StreamFactory
 type KafkaStreamFactory struct {
 	metricsStorage *metrics.Storage
+	verbose        bool
 }
 
-func NewKafkaStreamFactory(metricsStorage *metrics.Storage) *KafkaStreamFactory {
-	return &KafkaStreamFactory{metricsStorage: metricsStorage}
+func NewKafkaStreamFactory(metricsStorage *metrics.Storage, verbose bool) *KafkaStreamFactory {
+	return &KafkaStreamFactory{metricsStorage: metricsStorage, verbose: verbose}
 }
 
 func (h *KafkaStreamFactory) New(net, transport gopacket.Flow) tcpassembly.Stream {
@@ -29,6 +29,7 @@ func (h *KafkaStreamFactory) New(net, transport gopacket.Flow) tcpassembly.Strea
 		transport:      transport,
 		r:              tcpreader.NewReaderStream(),
 		metricsStorage: h.metricsStorage,
+		verbose:        h.verbose,
 	}
 
 	go s.run() // Important... we must guarantee that data from the reader stream is read.
@@ -41,57 +42,55 @@ type KafkaStream struct {
 	net, transport gopacket.Flow
 	r              tcpreader.ReaderStream
 	metricsStorage *metrics.Storage
+	verbose        bool
 }
 
 func (h *KafkaStream) run() {
-	h.metricsStorage.IncConnectionsTotal()
-
 	log.Printf("%s:%s -> %s:%s", h.net.Src(), h.transport.Src(), h.net.Dst(), h.transport.Dst())
 	log.Printf("%s:%s -> %s:%s", h.net.Dst(), h.transport.Dst(), h.net.Src(), h.transport.Src())
 
 	buf := bufio.NewReaderSize(&h.r, 2<<15) // 65k
 
 	for {
-		start := time.Now()
-		req, readBytes, err := kafka.DecodeRequest(buf)
-		buf.Reset(&h.r)
-
-		// calculate decode time
-		spentTime := float64(time.Since(start)) / float64(time.Second)
-
-		if err == io.EOF {
+		req, _, err := kafka.DecodeRequest(buf)
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			log.Println("got EOF - stop reading from stream")
 			return
 		}
 
-		// set success decoding spent time
-		h.metricsStorage.ObserveRequestDecodeTimeSeconds(spentTime)
-
-		// set the size of request
-		h.metricsStorage.ObserverRequestSizeBytes(float64(readBytes))
-
 		if err != nil {
+			// if it is not packed decoding error, let's discard bytes to EOF in order to close this connection in the future
+			if _, ok := err.(kafka.PacketDecodingError); !ok {
+				// lets discard bytes to EOF
+				tcpreader.DiscardBytesToEOF(buf)
+			}
+
 			log.Printf("unable to read request to Broker - skipping stream: %s\n", err)
+
 			continue
 		}
 
-		// increase count of received requests
-		h.metricsStorage.IncReceivedTotal()
-
-		log.Printf("got request, key: %d, version: %d, correlationID: %d, clientID: %s\n", req.Key, req.Version, req.CorrelationID, req.ClientID)
+		if h.verbose {
+			log.Printf("got request, key: %d, version: %d, correlationID: %d, clientID: %s\n", req.Key, req.Version, req.CorrelationID, req.ClientID)
+		}
 
 		switch body := req.Body.(type) {
 		case *kafka.ProduceRequest:
 			for _, topic := range body.ExtractTopics() {
-				log.Printf("client %s:%s wrote to topic %s", h.net.Src(), h.transport.Src(), topic)
+				if h.verbose {
+					log.Printf("client %s:%s wrote to topic %s", h.net.Src(), h.transport.Src(), topic)
+				}
 
 				// add producer and topic relation info into metric
 				h.metricsStorage.AddProducerTopicRelationInfo(h.net.Src().String(), topic)
 			}
 		case *kafka.FetchRequest:
 			for _, topic := range body.ExtractTopics() {
-				log.Printf("client %s:%s read from topic %s", h.net.Src(), h.transport.Src(), topic)
+				if h.verbose {
+					log.Printf("client %s:%s read from topic %s", h.net.Src(), h.transport.Src(), topic)
+				}
 
+				// add consumer and topic relation info into metric
 				h.metricsStorage.AddConsumerTopicRelationInfo(h.net.Src().String(), topic)
 			}
 		}

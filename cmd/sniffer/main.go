@@ -56,7 +56,7 @@ func main() {
 	metricsStorage := metrics.NewStorage(prometheus.DefaultRegisterer, *expireTime)
 
 	// Set up assembly
-	streamPool := tcpassembly.NewStreamPool(stream.NewKafkaStreamFactory(metricsStorage))
+	streamPool := tcpassembly.NewStreamPool(stream.NewKafkaStreamFactory(metricsStorage, *verbose))
 	assembler := tcpassembly.NewAssembler(streamPool)
 
 	// Auto-flushing connection state to get packets
