@@ -35,7 +35,6 @@ func (r *Records) setTypeFromFields() (bool, error) {
 	return false, nil
 }
 
-
 func (r *Records) setTypeFromMagic(pd PacketDecoder) error {
 	magic, err := magicValue(pd)
 	if err != nil {
