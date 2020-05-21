@@ -12,7 +12,7 @@ type ProduceRequest struct {
 	RequiredAcks    RequiredAcks
 	Timeout         int32
 	Version         int16 // v1 requires Kafka 0.9, v2 requires Kafka 0.10, v3 requires Kafka 0.11
-	records         map[string]map[int32]Records
+	records         map[string]map[int32]bool
 }
 
 func (r *ProduceRequest) Decode(pd PacketDecoder, version int16) error {
@@ -41,7 +41,7 @@ func (r *ProduceRequest) Decode(pd PacketDecoder, version int16) error {
 		return nil
 	}
 
-	r.records = make(map[string]map[int32]Records)
+	r.records = make(map[string]map[int32]bool)
 	for i := 0; i < topicCount; i++ {
 		topic, err := pd.getString()
 		if err != nil {
@@ -51,7 +51,7 @@ func (r *ProduceRequest) Decode(pd PacketDecoder, version int16) error {
 		if err != nil {
 			return err
 		}
-		r.records[topic] = make(map[int32]Records)
+		r.records[topic] = make(map[int32]bool)
 
 		for j := 0; j < partitionCount; j++ {
 			partition, err := pd.getInt32()
@@ -63,16 +63,14 @@ func (r *ProduceRequest) Decode(pd PacketDecoder, version int16) error {
 				return err
 			}
 
-			recordsDecoder, err := pd.getSubset(int(size))
+			// rewind decoder to size
+			_, err = pd.getSubset(int(size))
 			if err != nil {
 				return err
 			}
-			var records Records
-			if err := records.Decode(recordsDecoder); err != nil {
-				return err
-			}
+
 			// @todo small check
-			r.records[topic][partition] = Records{}
+			r.records[topic][partition] = true
 		}
 	}
 
