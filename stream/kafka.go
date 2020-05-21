@@ -16,10 +16,11 @@ import (
 // KafkaStreamFactory implements tcpassembly.StreamFactory
 type KafkaStreamFactory struct {
 	metricsStorage *metrics.Storage
+	verbose        bool
 }
 
-func NewKafkaStreamFactory(metricsStorage *metrics.Storage) *KafkaStreamFactory {
-	return &KafkaStreamFactory{metricsStorage: metricsStorage}
+func NewKafkaStreamFactory(metricsStorage *metrics.Storage, verbose bool) *KafkaStreamFactory {
+	return &KafkaStreamFactory{metricsStorage: metricsStorage, verbose: verbose}
 }
 
 func (h *KafkaStreamFactory) New(net, transport gopacket.Flow) tcpassembly.Stream {
@@ -28,6 +29,7 @@ func (h *KafkaStreamFactory) New(net, transport gopacket.Flow) tcpassembly.Strea
 		transport:      transport,
 		r:              tcpreader.NewReaderStream(),
 		metricsStorage: h.metricsStorage,
+		verbose:        h.verbose,
 	}
 
 	go s.run() // Important... we must guarantee that data from the reader stream is read.
@@ -40,6 +42,7 @@ type KafkaStream struct {
 	net, transport gopacket.Flow
 	r              tcpreader.ReaderStream
 	metricsStorage *metrics.Storage
+	verbose        bool
 }
 
 func (h *KafkaStream) run() {
@@ -67,20 +70,27 @@ func (h *KafkaStream) run() {
 			continue
 		}
 
-		log.Printf("got request, key: %d, version: %d, correlationID: %d, clientID: %s\n", req.Key, req.Version, req.CorrelationID, req.ClientID)
+		if h.verbose {
+			log.Printf("got request, key: %d, version: %d, correlationID: %d, clientID: %s\n", req.Key, req.Version, req.CorrelationID, req.ClientID)
+		}
 
 		switch body := req.Body.(type) {
 		case *kafka.ProduceRequest:
 			for _, topic := range body.ExtractTopics() {
-				log.Printf("client %s:%s wrote to topic %s", h.net.Src(), h.transport.Src(), topic)
+				if h.verbose {
+					log.Printf("client %s:%s wrote to topic %s", h.net.Src(), h.transport.Src(), topic)
+				}
 
 				// add producer and topic relation info into metric
 				h.metricsStorage.AddProducerTopicRelationInfo(h.net.Src().String(), topic)
 			}
 		case *kafka.FetchRequest:
 			for _, topic := range body.ExtractTopics() {
-				log.Printf("client %s:%s read from topic %s", h.net.Src(), h.transport.Src(), topic)
+				if h.verbose {
+					log.Printf("client %s:%s read from topic %s", h.net.Src(), h.transport.Src(), topic)
+				}
 
+				// add consumer and topic relation info into metric
 				h.metricsStorage.AddConsumerTopicRelationInfo(h.net.Src().String(), topic)
 			}
 		}
