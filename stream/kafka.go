@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"io"
 	"log"
-	"time"
 
 	"github.com/d-ulyanov/kafka-sniffer/kafka"
 	"github.com/d-ulyanov/kafka-sniffer/metrics"
@@ -44,39 +43,29 @@ type KafkaStream struct {
 }
 
 func (h *KafkaStream) run() {
-	h.metricsStorage.IncConnectionsTotal()
-
 	log.Printf("%s:%s -> %s:%s", h.net.Src(), h.transport.Src(), h.net.Dst(), h.transport.Dst())
 	log.Printf("%s:%s -> %s:%s", h.net.Dst(), h.transport.Dst(), h.net.Src(), h.transport.Src())
 
 	buf := bufio.NewReaderSize(&h.r, 2<<15) // 65k
 
 	for {
-		start := time.Now()
-		req, readBytes, err := kafka.DecodeRequest(buf)
-		buf.Reset(&h.r)
-
-		// calculate decode time
-		spentTime := float64(time.Since(start)) / float64(time.Second)
-
-		if err == io.EOF {
+		req, _, err := kafka.DecodeRequest(buf)
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			log.Println("got EOF - stop reading from stream")
 			return
 		}
 
-		// set success decoding spent time
-		h.metricsStorage.ObserveRequestDecodeTimeSeconds(spentTime)
-
-		// set the size of request
-		h.metricsStorage.ObserverRequestSizeBytes(float64(readBytes))
-
 		if err != nil {
+			// if it is not packed decoding error, let's discard bytes to EOF in order to close this connection in the future
+			if _, ok := err.(kafka.PacketDecodingError); !ok {
+				// lets discard bytes to EOF
+				tcpreader.DiscardBytesToEOF(buf)
+			}
+
 			log.Printf("unable to read request to Broker - skipping stream: %s\n", err)
+
 			continue
 		}
-
-		// increase count of received requests
-		h.metricsStorage.IncReceivedTotal()
 
 		log.Printf("got request, key: %d, version: %d, correlationID: %d, clientID: %s\n", req.Key, req.Version, req.CorrelationID, req.ClientID)
 
