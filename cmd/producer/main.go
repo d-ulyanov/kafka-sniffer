@@ -46,8 +46,6 @@ func main() {
 			}
 		}
 	}
-
-	log.Fatal("shutting down")
 }
 
 func newDataCollector(brokerList []string) sarama.SyncProducer {

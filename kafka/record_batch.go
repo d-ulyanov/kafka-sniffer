@@ -37,8 +37,7 @@ type RecordBatch struct {
 	PartialTrailingRecord bool
 	IsTransactional       bool
 
-	compressedRecords []byte
-	recordsLen        int // uncompressed records size
+	recordsLen int // uncompressed records size
 }
 
 func (b *RecordBatch) LastOffset() int64 {
@@ -139,8 +138,4 @@ func (b *RecordBatch) Decode(pd PacketDecoder) (err error) {
 		return nil
 	}
 	return err
-}
-
-func (b *RecordBatch) addRecord(r *Record) {
-	b.Records = append(b.Records, r)
 }

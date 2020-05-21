@@ -8,19 +8,6 @@ type fetchRequestBlock struct {
 	maxBytes           int32
 }
 
-func (b *fetchRequestBlock) encode(pe packetEncoder, version int16) error {
-	b.Version = version
-	if b.Version >= 9 {
-		pe.putInt32(b.currentLeaderEpoch)
-	}
-	pe.putInt64(b.fetchOffset)
-	if b.Version >= 5 {
-		pe.putInt64(b.logStartOffset)
-	}
-	pe.putInt32(b.maxBytes)
-	return nil
-}
-
 func (b *fetchRequestBlock) decode(pd PacketDecoder, version int16) (err error) {
 	b.Version = version
 	if b.Version >= 9 {
@@ -59,75 +46,6 @@ type FetchRequest struct {
 }
 
 type IsolationLevel int8
-
-const (
-	ReadUncommitted IsolationLevel = iota
-	ReadCommitted
-)
-
-func (r *FetchRequest) encode(pe packetEncoder) (err error) {
-	pe.putInt32(-1) // replica ID is always -1 for clients
-	pe.putInt32(r.MaxWaitTime)
-	pe.putInt32(r.MinBytes)
-	if r.Version >= 3 {
-		pe.putInt32(r.MaxBytes)
-	}
-	if r.Version >= 4 {
-		pe.putInt8(int8(r.Isolation))
-	}
-	if r.Version >= 7 {
-		pe.putInt32(r.SessionID)
-		pe.putInt32(r.SessionEpoch)
-	}
-	err = pe.putArrayLength(len(r.blocks))
-	if err != nil {
-		return err
-	}
-	for topic, blocks := range r.blocks {
-		err = pe.putString(topic)
-		if err != nil {
-			return err
-		}
-		err = pe.putArrayLength(len(blocks))
-		if err != nil {
-			return err
-		}
-		for partition, block := range blocks {
-			pe.putInt32(partition)
-			err = block.encode(pe, r.Version)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	if r.Version >= 7 {
-		err = pe.putArrayLength(len(r.forgotten))
-		if err != nil {
-			return err
-		}
-		for topic, partitions := range r.forgotten {
-			err = pe.putString(topic)
-			if err != nil {
-				return err
-			}
-			err = pe.putArrayLength(len(partitions))
-			if err != nil {
-				return err
-			}
-			for _, partition := range partitions {
-				pe.putInt32(partition)
-			}
-		}
-	}
-	if r.Version >= 11 {
-		err = pe.putString(r.RackID)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
 
 func (r *FetchRequest) ExtractTopics() []string {
 	var topics []string
@@ -246,10 +164,6 @@ func (r *FetchRequest) key() int16 {
 
 func (r *FetchRequest) version() int16 {
 	return r.Version
-}
-
-func (r *FetchRequest) headerVersion() int16 {
-	return 1
 }
 
 func (r *FetchRequest) requiredVersion() KafkaVersion {

@@ -64,10 +64,8 @@ func decompress(cc CompressionCodec, data []byte) ([]byte, error) {
 }
 
 var (
-	zstdDec *zstd.Decoder
-	zstdEnc *zstd.Encoder
-
-	zstdEncOnce, zstdDecOnce sync.Once
+	zstdDec     *zstd.Decoder
+	zstdDecOnce sync.Once
 )
 
 func zstdDecompress(dst, src []byte) ([]byte, error) {
@@ -75,11 +73,4 @@ func zstdDecompress(dst, src []byte) ([]byte, error) {
 		zstdDec, _ = zstd.NewReader(nil)
 	})
 	return zstdDec.DecodeAll(src, dst)
-}
-
-func zstdCompress(dst, src []byte) ([]byte, error) {
-	zstdEncOnce.Do(func() {
-		zstdEnc, _ = zstd.NewWriter(nil, zstd.WithZeroFrames(true))
-	})
-	return zstdEnc.EncodeAll(src, dst), nil
 }

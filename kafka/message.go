@@ -53,8 +53,7 @@ type Message struct {
 	Version          int8             // v1 requires Kafka 0.10
 	Timestamp        time.Time        // the timestamp of the message (version 1+ only)
 
-	compressedCache []byte
-	compressedSize  int // used for computing the compression ratio metrics
+	compressedSize int // used for computing the compression ratio metrics
 }
 
 func (m *Message) decode(pd PacketDecoder) (err error) {
