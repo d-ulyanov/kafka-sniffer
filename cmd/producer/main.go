@@ -46,8 +46,6 @@ func main() {
 			}
 		}
 	}
-
-	log.Fatal("shutting down")
 }
 
 func newDataCollector(brokerList []string) sarama.SyncProducer {
@@ -57,7 +55,7 @@ func newDataCollector(brokerList []string) sarama.SyncProducer {
 	// as fast as possible to keep latency low.
 	config := sarama.NewConfig()
 	config.Producer.Return.Successes = true
-	config.Metadata.Retry.Backoff = 2*time.Second
+	config.Metadata.Retry.Backoff = 2 * time.Second
 
 	// On the broker side, you may want to change the following settings to get
 	// stronger consistency guarantees:
