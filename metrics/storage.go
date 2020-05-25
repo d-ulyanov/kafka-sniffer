@@ -9,23 +9,21 @@ import (
 )
 
 const (
-	namespace = "kafka_sniffer"
+	namespace      = "kafka_sniffer"
+	hourExpireTime = time.Hour
 )
 
 // Storage contains prometheus metrics that have expiration time. When expiration time is succeeded,
 // metric with specific labels will be removed from storage. It is needed to keep only fresh producer,
 // topic and consumer relations.
 type Storage struct {
-	registerer prometheus.Registerer
-
 	producerTopicRelationInfo *metric
 	consumerTopicRelationInfo *metric
+	activeConnectionsTotal    *metric
 }
 
 func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Storage {
 	var s = &Storage{
-		registerer: registerer,
-
 		producerTopicRelationInfo: newMetric(prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name:      "producer_topic_relation_info",
@@ -36,25 +34,32 @@ func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Sto
 			Name:      "consumer_topic_relation_info",
 			Help:      "Relation information between consumer and topic",
 		}, []string{"consumer", "topic"}), expireTime),
+		activeConnectionsTotal: newMetric(prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Name:      "active_connections_total",
+			Help:      "Contains total count of active connections",
+		}, []string{"client_ip"}), hourExpireTime),
 	}
 
-	s.registerer.MustRegister(
+	registerer.MustRegister(
 		s.producerTopicRelationInfo.promMetric,
 		s.consumerTopicRelationInfo.promMetric,
+		s.activeConnectionsTotal.promMetric,
 	)
-
-	go s.producerTopicRelationInfo.runExpiration()
-	go s.consumerTopicRelationInfo.runExpiration()
 
 	return s
 }
 
 func (s *Storage) AddProducerTopicRelationInfo(producer, topic string) {
-	s.producerTopicRelationInfo.update(producer, topic)
+	s.producerTopicRelationInfo.set(producer, topic)
 }
 
 func (s *Storage) AddConsumerTopicRelationInfo(consumer, topic string) {
-	s.consumerTopicRelationInfo.update(consumer, topic)
+	s.consumerTopicRelationInfo.set(consumer, topic)
+}
+
+func (s *Storage) AddActiveConnectionsTotal(clientIP string) {
+	s.activeConnectionsTotal.inc(clientIP)
 }
 
 // metric contains expiration functionality
@@ -69,19 +74,33 @@ type metric struct {
 }
 
 func newMetric(promMetric *prometheus.GaugeVec, expireTime time.Duration) *metric {
-	return &metric{
+	m := &metric{
 		promMetric: promMetric,
 		expireTime: expireTime,
 
 		relations: make(map[string]*relation),
 		expCh:     make(chan []string),
 	}
+
+	go m.runExpiration()
+
+	return m
+}
+
+func (m *metric) set(labels ...string) {
+	m.promMetric.WithLabelValues(labels...).Set(float64(1))
+
+	m.update(labels...)
+}
+
+func (m *metric) inc(labels ...string) {
+	m.promMetric.WithLabelValues(labels...).Inc()
+
+	m.update(labels...)
 }
 
 // update updates relations or creates new one
 func (m *metric) update(labels ...string) {
-	m.promMetric.WithLabelValues(labels...).Set(float64(1))
-
 	m.mux.Lock()
 	if r, ok := m.relations[genLabelKey(labels...)]; ok {
 		r.refresh()
