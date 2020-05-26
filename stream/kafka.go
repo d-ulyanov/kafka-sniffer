@@ -51,6 +51,9 @@ func (h *KafkaStream) run() {
 
 	buf := bufio.NewReaderSize(&h.r, 2<<15) // 65k
 
+	// add new client ip to metric
+	h.metricsStorage.AddActiveConnectionsTotal(h.net.Src().String())
+
 	for {
 		req, readBytes, err := kafka.DecodeRequest(buf)
 		if err == io.EOF || err == io.ErrUnexpectedEOF {

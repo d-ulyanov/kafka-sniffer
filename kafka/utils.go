@@ -1,47 +1,8 @@
 package kafka
 
 import (
-	"bufio"
 	"fmt"
-	"log"
-	"net"
-	"regexp"
 )
-
-type none struct{}
-
-// make []int32 sortable so we can sort partition numbers
-type int32Slice []int32
-
-func (slice int32Slice) Len() int {
-	return len(slice)
-}
-
-func (slice int32Slice) Less(i, j int) bool {
-	return slice[i] < slice[j]
-}
-
-func (slice int32Slice) Swap(i, j int) {
-	slice[i], slice[j] = slice[j], slice[i]
-}
-
-func dupInt32Slice(input []int32) []int32 {
-	ret := make([]int32, 0, len(input))
-	for _, val := range input {
-		ret = append(ret, val)
-	}
-	return ret
-}
-
-func withRecover(fn func()) {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Println(err)
-		}
-	}()
-
-	fn()
-}
 
 // Encoder is a simple interface for any type that can be encoded as an array of bytes
 // in order to be sent as the key or value of a Kafka message. Length() is provided as an
@@ -78,24 +39,6 @@ func (b ByteEncoder) Length() int {
 	return len(b)
 }
 
-// bufConn wraps a net.Conn with a buffer for reads to reduce the number of
-// reads that trigger syscalls.
-type bufConn struct {
-	net.Conn
-	buf *bufio.Reader
-}
-
-func newBufConn(conn net.Conn) *bufConn {
-	return &bufConn{
-		Conn: conn,
-		buf:  bufio.NewReader(conn),
-	}
-}
-
-func (bc *bufConn) Read(b []byte) (n int, err error) {
-	return bc.buf.Read(b)
-}
-
 // KafkaVersion instances represent versions of the upstream Kafka broker.
 type KafkaVersion struct {
 	// it's a struct rather than just typing the array directly to make it opaque and stop people
@@ -127,83 +70,20 @@ func (v KafkaVersion) IsAtLeast(other KafkaVersion) bool {
 // Effective constants defining the supported kafka versions.
 var (
 	V0_8_2_0  = newKafkaVersion(0, 8, 2, 0)
-	V0_8_2_1  = newKafkaVersion(0, 8, 2, 1)
-	V0_8_2_2  = newKafkaVersion(0, 8, 2, 2)
 	V0_9_0_0  = newKafkaVersion(0, 9, 0, 0)
-	V0_9_0_1  = newKafkaVersion(0, 9, 0, 1)
 	V0_10_0_0 = newKafkaVersion(0, 10, 0, 0)
-	V0_10_0_1 = newKafkaVersion(0, 10, 0, 1)
 	V0_10_1_0 = newKafkaVersion(0, 10, 1, 0)
-	V0_10_1_1 = newKafkaVersion(0, 10, 1, 1)
-	V0_10_2_0 = newKafkaVersion(0, 10, 2, 0)
-	V0_10_2_1 = newKafkaVersion(0, 10, 2, 1)
 	V0_11_0_0 = newKafkaVersion(0, 11, 0, 0)
-	V0_11_0_1 = newKafkaVersion(0, 11, 0, 1)
-	V0_11_0_2 = newKafkaVersion(0, 11, 0, 2)
 	V1_0_0_0  = newKafkaVersion(1, 0, 0, 0)
 	V1_1_0_0  = newKafkaVersion(1, 1, 0, 0)
-	V1_1_1_0  = newKafkaVersion(1, 1, 1, 0)
 	V2_0_0_0  = newKafkaVersion(2, 0, 0, 0)
-	V2_0_1_0  = newKafkaVersion(2, 0, 1, 0)
 	V2_1_0_0  = newKafkaVersion(2, 1, 0, 0)
-	V2_2_0_0  = newKafkaVersion(2, 2, 0, 0)
 	V2_3_0_0  = newKafkaVersion(2, 3, 0, 0)
 	V2_4_0_0  = newKafkaVersion(2, 4, 0, 0)
 
-	SupportedVersions = []KafkaVersion{
-		V0_8_2_0,
-		V0_8_2_1,
-		V0_8_2_2,
-		V0_9_0_0,
-		V0_9_0_1,
-		V0_10_0_0,
-		V0_10_0_1,
-		V0_10_1_0,
-		V0_10_1_1,
-		V0_10_2_0,
-		V0_10_2_1,
-		V0_11_0_0,
-		V0_11_0_1,
-		V0_11_0_2,
-		V1_0_0_0,
-		V1_1_0_0,
-		V1_1_1_0,
-		V2_0_0_0,
-		V2_0_1_0,
-		V2_1_0_0,
-		V2_2_0_0,
-		V2_3_0_0,
-		V2_4_0_0,
-	}
 	MinVersion = V0_8_2_0
 	MaxVersion = V2_4_0_0
 )
-
-//ParseKafkaVersion parses and returns kafka version or error from a string
-func ParseKafkaVersion(s string) (KafkaVersion, error) {
-	if len(s) < 5 {
-		return MinVersion, fmt.Errorf("invalid version `%s`", s)
-	}
-	var major, minor, veryMinor, patch uint
-	var err error
-	if s[0] == '0' {
-		err = scanKafkaVersion(s, `^0\.\d+\.\d+\.\d+$`, "0.%d.%d.%d", [3]*uint{&minor, &veryMinor, &patch})
-	} else {
-		err = scanKafkaVersion(s, `^\d+\.\d+\.\d+$`, "%d.%d.%d", [3]*uint{&major, &minor, &veryMinor})
-	}
-	if err != nil {
-		return MinVersion, err
-	}
-	return newKafkaVersion(major, minor, veryMinor, patch), nil
-}
-
-func scanKafkaVersion(s string, pattern string, format string, v [3]*uint) error {
-	if !regexp.MustCompile(pattern).MatchString(s) {
-		return fmt.Errorf("invalid version `%s`", s)
-	}
-	_, err := fmt.Sscanf(s, format, v[0], v[1], v[2])
-	return err
-}
 
 func (v KafkaVersion) String() string {
 	if v.version[0] == 0 {

@@ -151,66 +151,6 @@ func allocateBody(key, version int16) ProtocolBody {
 		return &ProduceRequest{}
 	case 1:
 		return &FetchRequest{Version: version}
-		//case 2:
-		//	return &OffsetRequest{Version: version}
-		//case 3:
-		//	return &MetadataRequest{}
-		//case 8:
-		//	return &OffsetCommitRequest{Version: version}
-		//case 9:
-		//	return &OffsetFetchRequest{}
-		//case 10:
-		//	return &FindCoordinatorRequest{}
-		//case 11:
-		//	return &JoinGroupRequest{}
-		//case 12:
-		//	return &HeartbeatRequest{}
-		//case 13:
-		//	return &LeaveGroupRequest{}
-		//case 14:
-		//	return &SyncGroupRequest{}
-		//case 15:
-		//	return &DescribeGroupsRequest{}
-		//case 16:
-		//	return &ListGroupsRequest{}
-		//case 17:
-		//	return &SaslHandshakeRequest{}
-		//case 18:
-		//	return &ApiVersionsRequest{}
-		//case 19:
-		//	return &CreateTopicsRequest{}
-		//case 20:
-		//	return &DeleteTopicsRequest{}
-		//case 21:
-		//	return &DeleteRecordsRequest{}
-		//case 22:
-		//	return &InitProducerIDRequest{}
-		//case 24:
-		//	return &AddPartitionsToTxnRequest{}
-		//case 25:
-		//	return &AddOffsetsToTxnRequest{}
-		//case 26:
-		//	return &EndTxnRequest{}
-		//case 28:
-		//	return &TxnOffsetCommitRequest{}
-		//case 29:
-		//	return &DescribeAclsRequest{}
-		//case 30:
-		//	return &CreateAclsRequest{}
-		//case 31:
-		//	return &DeleteAclsRequest{}
-		//case 32:
-		//	return &DescribeConfigsRequest{}
-		//case 33:
-		//	return &AlterConfigsRequest{}
-		//case 35:
-		//	return &DescribeLogDirsRequest{}
-		//case 36:
-		//	return &SaslAuthenticateRequest{}
-		//case 37:
-		//	return &CreatePartitionsRequest{}
-		//case 42:
-		//	return &DeleteGroupsRequest{}
 	}
 	return nil
 }
