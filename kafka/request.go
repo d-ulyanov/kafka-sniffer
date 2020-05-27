@@ -100,34 +100,36 @@ func DecodeRequest(r io.Reader) (*Request, int, error) {
 		needReadBytes = 8
 		readBytes     = make([]byte, needReadBytes)
 	)
-
+	/// read bytes to decode length, key, version
 	if _, err := io.ReadFull(r, readBytes); err != nil {
 		return nil, needReadBytes, err
 	}
-
 	if len(readBytes) != needReadBytes {
-		return nil, len(readBytes), errors.New("could define key, version")
+		return nil, len(readBytes), errors.New("could define length, key, version")
 	}
 
+	// length - (key(2 bytes) + version(2 bytes))
 	length := DecodeLength(readBytes) - 4
 	key := DecodeKey(readBytes)
 	version := DecodeVersion(readBytes)
 
+	// check request type
 	if protocol := allocateBody(key, version); protocol == nil {
-		return nil, needReadBytes, errors.New("unsupported protocol")
+		return nil, int(length), PacketDecodingError{fmt.Sprintf("unsupported protocol with key: %d", key)}
 	}
 
+	// check request size
 	if length <= 4 || length > MaxRequestSize {
-		return nil, needReadBytes, PacketDecodingError{fmt.Sprintf("message of length %d too large or too small", length)}
+		return nil, int(length), PacketDecodingError{fmt.Sprintf("message of length %d too large or too small", length)}
 	}
 
+	// read full request
 	encodedReq := make([]byte, length)
 	if _, err := io.ReadFull(r, encodedReq); err != nil {
-		return nil, needReadBytes, err
+		return nil, int(length), err
 	}
 
 	bytesRead := needReadBytes + len(encodedReq)
-
 	req := &Request{
 		BodyLength:            length,
 		Key:                   key,
@@ -135,6 +137,7 @@ func DecodeRequest(r io.Reader) (*Request, int, error) {
 		UsePreparedKeyVersion: true,
 	}
 
+	// decode request
 	if err := Decode(encodedReq, req); err != nil {
 		return nil, bytesRead, err
 	}

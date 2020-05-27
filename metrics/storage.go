@@ -8,10 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const (
-	namespace      = "kafka_sniffer"
-	hourExpireTime = time.Hour
-)
+const namespace = "kafka_sniffer"
 
 // Storage contains prometheus metrics that have expiration time. When expiration time is succeeded,
 // metric with specific labels will be removed from storage. It is needed to keep only fresh producer,
@@ -38,7 +35,7 @@ func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Sto
 			Namespace: namespace,
 			Name:      "active_connections_total",
 			Help:      "Contains total count of active connections",
-		}, []string{"client_ip"}), hourExpireTime),
+		}, []string{"client_ip"}), expireTime),
 	}
 
 	registerer.MustRegister(

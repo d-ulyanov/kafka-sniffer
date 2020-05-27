@@ -55,20 +55,20 @@ func (h *KafkaStream) run() {
 	h.metricsStorage.AddActiveConnectionsTotal(h.net.Src().String())
 
 	for {
-		req, _, err := kafka.DecodeRequest(buf)
+		req, readBytes, err := kafka.DecodeRequest(buf)
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			log.Println("got EOF - stop reading from stream")
 			return
 		}
 
 		if err != nil {
-			// if it is not packed decoding error, let's discard bytes to EOF in order to close this connection in the future
-			if _, ok := err.(kafka.PacketDecodingError); !ok {
-				// lets discard bytes to EOF
-				tcpreader.DiscardBytesToEOF(buf)
-			}
+			log.Printf("unable to read request to Broker - skipping packet: %s\n", err)
 
-			log.Printf("unable to read request to Broker - skipping stream: %s\n", err)
+			if _, ok := err.(kafka.PacketDecodingError); ok {
+				_, err := buf.Discard(readBytes)
+				if err != nil {
+					log.Printf("could not discard: %s\n", err)
+				}
+			}
 
 			continue
 		}
