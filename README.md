@@ -1,10 +1,13 @@
 # Kafka sniffer
 
-It's made for detection how producers and topics related 
-(usually, it's not possible to know if auth is disabled on Kafka cluster).
+Initially, this tool was build for internal usage: we had a shared Kafka cluster with thousands topics and hundreds clients (without any auth) and wanted to migrate all this stuff to the new cluster. For this reason, we needed to know what mircoservices are still connected to the old cluster and what topics this service uses.
+
+This sniffer can:
+- detect active connections to Kafka Broker and can say who is producer and who is consumer
+- detect topics to which producers trying to write / consumers trying to read
+- expose IPs, request kind and topic as Prometheus metrics
 
 Kafka protocol: https://kafka.apache.org/protocol
-
 
 Example:
 
