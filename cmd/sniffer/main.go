@@ -27,9 +27,9 @@ const (
 
 var (
 	iface      = flag.String("i", "eth0", "Interface to get packets from")
-	dstport    = flag.Uint("p", 9092, "Kafka broker port") // todo: use -f tcp and dst port 9092
+	dstport    = flag.Uint("p", 9092, "Kafka broker port")
 	snaplen    = flag.Int("s", 16<<10, "SnapLen for pcap packet capture")
-	filter     = flag.String("f", "tcp", "BPF filter for pcap")
+	filter     = flag.String("f", fmt.Sprintf("tcp and dst port %d", *dstport), "BPF filter for pcap")
 	verbose    = flag.Bool("v", false, "Logs every packet in great detail")
 	listenAddr = flag.String("addr", defaultListenAddr, "Address on which sniffer listen the requests")
 	expireTime = flag.Duration("metrics.expire-time", defaultExpireTime, "Expiration time of metric.")
@@ -74,9 +74,9 @@ func main() {
 	for {
 		select {
 		case packet := <-packets:
-			if *verbose {
-				log.Println(packet)
-			}
+			//if *verbose {
+			//	log.Println(packet)
+			//}
 
 			if packet.NetworkLayer() == nil || packet.TransportLayer() == nil || packet.TransportLayer().LayerType() != layers.LayerTypeTCP {
 				if *verbose {
@@ -86,15 +86,6 @@ func main() {
 			}
 
 			tcp := packet.TransportLayer().(*layers.TCP)
-
-			// todo: remove it (because port filter is in BFP)
-			if tcp.DstPort != layers.TCPPort(*dstport) {
-				if *verbose {
-					log.Println("Unusable dst port:" + tcp.DstPort.String())
-				}
-
-				continue
-			}
 
 			assembler.AssembleWithTimestamp(packet.NetworkLayer().NetworkFlow(), tcp, packet.Metadata().Timestamp)
 

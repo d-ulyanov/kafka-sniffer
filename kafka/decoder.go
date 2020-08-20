@@ -59,6 +59,10 @@ type PacketDecoder interface {
 
 	// @dmulyanov: we need this shit to discard bytes if we can't (don't want to unmarshal request structure)
 	discard(length int)
+
+	// Stacks, see PushDecoder
+	push(in PushDecoder) error
+	pop() error
 }
 
 // PushDecoder is the interface for decoding fields like CRCs and lengths where the validity
@@ -400,6 +404,39 @@ func (rd *RealDecoder) peekInt8(offset int) (int8, error) {
 		return -1, ErrInsufficientData
 	}
 	return int8(rd.raw[rd.off+offset]), nil
+}
+
+// stacks
+
+func (rd *RealDecoder) push(in PushDecoder) error {
+	in.saveOffset(rd.off)
+
+	var reserve int
+	if dpd, ok := in.(DynamicPushDecoder); ok {
+		if err := dpd.Decode(rd); err != nil {
+			return err
+		}
+	} else {
+		reserve = in.reserveLength()
+		if rd.remaining() < reserve {
+			rd.off = len(rd.raw)
+			return ErrInsufficientData
+		}
+	}
+
+	rd.stack = append(rd.stack, in)
+
+	rd.off += reserve
+
+	return nil
+}
+
+func (rd *RealDecoder) pop() error {
+	// this is go's ugly pop pattern (the inverse of append)
+	in := rd.stack[len(rd.stack)-1]
+	rd.stack = rd.stack[:len(rd.stack)-1]
+
+	return in.check(rd.off, rd.raw)
 }
 
 func (rd *RealDecoder) discard(length int) {

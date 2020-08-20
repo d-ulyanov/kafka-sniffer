@@ -12,7 +12,7 @@ type ProduceRequest struct {
 	RequiredAcks    RequiredAcks
 	Timeout         int32
 	Version         int16 // v1 requires Kafka 0.9, v2 requires Kafka 0.10, v3 requires Kafka 0.11
-	records         map[string]map[int32]bool
+	records         map[string]map[int32]Records
 }
 
 func (r *ProduceRequest) Decode(pd PacketDecoder, version int16) error {
@@ -41,7 +41,7 @@ func (r *ProduceRequest) Decode(pd PacketDecoder, version int16) error {
 		return nil
 	}
 
-	r.records = make(map[string]map[int32]bool)
+	r.records = make(map[string]map[int32]Records)
 	for i := 0; i < topicCount; i++ {
 		topic, err := pd.getString()
 		if err != nil {
@@ -51,7 +51,7 @@ func (r *ProduceRequest) Decode(pd PacketDecoder, version int16) error {
 		if err != nil {
 			return err
 		}
-		r.records[topic] = make(map[int32]bool)
+		r.records[topic] = make(map[int32]Records)
 
 		for j := 0; j < partitionCount; j++ {
 			partition, err := pd.getInt32()
@@ -64,13 +64,15 @@ func (r *ProduceRequest) Decode(pd PacketDecoder, version int16) error {
 			}
 
 			// rewind decoder to size
-			_, err = pd.getSubset(int(size))
+			recordsDecoder, err := pd.getSubset(int(size))
 			if err != nil {
 				return err
 			}
-
-			// @todo small check
-			r.records[topic][partition] = true
+			var records Records
+			if err := records.decode(recordsDecoder); err != nil {
+				return err
+			}
+			r.records[topic][partition] = records
 		}
 	}
 
@@ -94,6 +96,36 @@ func (r *ProduceRequest) ExtractTopics() []string {
 	}
 
 	return out
+}
+
+func (r *ProduceRequest) RecordsLen() (recordsLen int) {
+	for _, partition := range r.records {
+		for _, record := range partition {
+			switch record.recordsType {
+			case legacyRecords:
+				recordsLen += len(record.MsgSet.Messages)
+			case defaultRecords:
+				recordsLen += len(record.RecordBatch.Records)
+			}
+		}
+	}
+	return
+}
+
+func (r *ProduceRequest) RecordsSize() (recordsSize int) {
+	for _, partition := range r.records {
+		for _, record := range partition {
+			switch record.recordsType {
+			case legacyRecords:
+				for _, msg := range record.MsgSet.Messages {
+					recordsSize += msg.Msg.compressedSize
+				}
+			case defaultRecords:
+				recordsSize += record.RecordBatch.recordsLen
+			}
+		}
+	}
+	return
 }
 
 func (r *ProduceRequest) requiredVersion() KafkaVersion {

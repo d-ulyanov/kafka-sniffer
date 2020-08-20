@@ -34,15 +34,21 @@ func main() {
 	for {
 		select {
 		case <-t.C:
-			partition, offset, err := c.SendMessage(&sarama.ProducerMessage{
-				Topic: "mytopic",
-				Value: sarama.StringEncoder("something"),
+			err := c.SendMessages([]*sarama.ProducerMessage{
+			    {
+					Topic: "mytopic",
+					Value: sarama.StringEncoder("something"),
+				},
+				{
+			    	Topic: "mysecondtopic",
+					Value: sarama.StringEncoder("something_another"),
+				},
 			})
 
 			if err != nil {
 				log.Printf("Failed to send message: %s", err)
 			} else {
-				log.Printf("message sent, partition: %d, offset: %d", partition, offset)
+				log.Print("messages sent")
 			}
 		}
 	}

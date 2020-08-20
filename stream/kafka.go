@@ -2,6 +2,7 @@ package stream
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"log"
 
@@ -46,8 +47,13 @@ type KafkaStream struct {
 }
 
 func (h *KafkaStream) run() {
-	log.Printf("%s:%s -> %s:%s", h.net.Src(), h.transport.Src(), h.net.Dst(), h.transport.Dst())
-	log.Printf("%s:%s -> %s:%s", h.net.Dst(), h.transport.Dst(), h.net.Src(), h.transport.Src())
+	srcHost := fmt.Sprint(h.net.Src())
+	srcPort := fmt.Sprint(h.transport.Src())
+	dstHost := fmt.Sprint(h.net.Dst())
+	dstPort := fmt.Sprint(h.transport.Dst())
+
+	log.Printf("%s:%s -> %s:%s", srcHost, srcPort, dstHost, dstPort)
+	log.Printf("%s:%s -> %s:%s", dstHost, dstPort, srcHost, srcPort)
 
 	buf := bufio.NewReaderSize(&h.r, 2<<15) // 65k
 
@@ -77,11 +83,20 @@ func (h *KafkaStream) run() {
 			log.Printf("got request, key: %d, version: %d, correlationID: %d, clientID: %s\n", req.Key, req.Version, req.CorrelationID, req.ClientID)
 		}
 
+
 		switch body := req.Body.(type) {
 		case *kafka.ProduceRequest:
+			metrics.ProducerRequestsCount.WithLabelValues(srcHost).Inc()
+
+			batchSize := body.RecordsSize()
+			metrics.ProducerBatchSize.WithLabelValues(srcHost).Add(float64(batchSize))
+
+			batchLen := body.RecordsLen()
+			metrics.ProducerBatchLen.WithLabelValues(srcHost).Add(float64(batchLen))
+
 			for _, topic := range body.ExtractTopics() {
 				if h.verbose {
-					log.Printf("client %s:%s wrote to topic %s", h.net.Src(), h.transport.Src(), topic)
+					log.Printf("client %s:%s wrote to topic %s", srcHost, srcPort, topic)
 				}
 
 				// add producer and topic relation info into metric

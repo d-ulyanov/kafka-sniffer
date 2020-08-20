@@ -1,5 +1,9 @@
 package kafka
 
+import (
+	"log"
+)
+
 type fetchRequestBlock struct {
 	Version            int16
 	currentLeaderEpoch int32
@@ -26,6 +30,7 @@ func (b *fetchRequestBlock) decode(pd PacketDecoder, version int16) (err error) 
 	if b.maxBytes, err = pd.getInt32(); err != nil {
 		return err
 	}
+	log.Println(*b)
 	return nil
 }
 
