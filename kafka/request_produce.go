@@ -140,7 +140,7 @@ func (r *ProduceRequest) SendClientMetrics(srcHost string) {
 	metrics.ProducerBatchLen.WithLabelValues(srcHost).Add(float64(batchLen))
 }
 
-func (r *ProduceRequest) requiredVersion() KafkaVersion {
+func (r *ProduceRequest) requiredVersion() Version {
 	switch r.Version {
 	case 1:
 		return V0_9_0_0

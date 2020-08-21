@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	isTransactionalMask   = 0x10
-	controlMask           = 0x20
+	isTransactionalMask = 0x10
+	controlMask         = 0x20
 )
 
 //RecordHeader stores key and value for a record header
@@ -25,7 +25,6 @@ func (h *RecordHeader) Decode(pd PacketDecoder) (err error) {
 	}
 	return nil
 }
-
 
 //Record is kafka record type
 type Record struct {

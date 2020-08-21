@@ -1,6 +1,8 @@
 package kafka
 
-import "github.com/d-ulyanov/kafka-sniffer/metrics"
+import (
+	"github.com/d-ulyanov/kafka-sniffer/metrics"
+)
 
 type fetchRequestBlock struct {
 	Version            int16
@@ -182,7 +184,7 @@ func (r *FetchRequest) version() int16 {
 	return r.Version
 }
 
-func (r *FetchRequest) requiredVersion() KafkaVersion {
+func (r *FetchRequest) requiredVersion() Version {
 	switch r.Version {
 	case 0:
 		return MinVersion

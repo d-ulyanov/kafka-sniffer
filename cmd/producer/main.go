@@ -31,25 +31,22 @@ func main() {
 
 	t := time.NewTicker(5 * time.Second)
 
-	for {
-		select {
-		case <-t.C:
-			err := c.SendMessages([]*sarama.ProducerMessage{
-			    {
-					Topic: "mytopic",
-					Value: sarama.StringEncoder("something"),
-				},
-				{
-			    	Topic: "mysecondtopic",
-					Value: sarama.StringEncoder("something_another"),
-				},
-			})
+	for range t.C {
+		err := c.SendMessages([]*sarama.ProducerMessage{
+			{
+				Topic: "mytopic",
+				Value: sarama.StringEncoder("something"),
+			},
+			{
+				Topic: "mysecondtopic",
+				Value: sarama.StringEncoder("something_another"),
+			},
+		})
 
-			if err != nil {
-				log.Printf("Failed to send message: %s", err)
-			} else {
-				log.Print("messages sent")
-			}
+		if err != nil {
+			log.Printf("Failed to send message: %s", err)
+		} else {
+			log.Print("messages sent")
 		}
 	}
 }

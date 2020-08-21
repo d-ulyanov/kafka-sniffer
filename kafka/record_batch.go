@@ -37,8 +37,7 @@ type RecordBatch struct {
 	PartialTrailingRecord bool
 	IsTransactional       bool
 
-	compressedRecords []byte
-	recordsLen        int // uncompressed records size
+	recordsLen int // uncompressed records size
 }
 
 func (b *RecordBatch) decode(pd PacketDecoder) (err error) {

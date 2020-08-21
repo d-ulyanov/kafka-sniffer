@@ -53,8 +53,7 @@ type Message struct {
 	Version          int8             // v1 requires Kafka 0.10
 	Timestamp        time.Time        // the timestamp of the message (version 1+ only)
 
-	compressedCache []byte
-	compressedSize  int // used for computing the compression ratio metrics
+	compressedSize int // used for computing the compression ratio metrics
 }
 
 func (m *Message) Decode(pd PacketDecoder) (err error) {
@@ -83,7 +82,7 @@ func (m *Message) Decode(pd PacketDecoder) (err error) {
 	m.LogAppendTime = attribute&timestampTypeMask == timestampTypeMask
 
 	if m.Version == 1 {
-		if err := (Timestamp{&m.Timestamp}).Decode(pd); err != nil {
+		if err = (Timestamp{&m.Timestamp}).Decode(pd); err != nil {
 			return err
 		}
 	}

@@ -17,7 +17,6 @@ import (
 	"github.com/google/gopacket/tcpassembly"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	_ "net/http/pprof"
 )
 
 const (
@@ -74,9 +73,9 @@ func main() {
 	for {
 		select {
 		case packet := <-packets:
-			//if *verbose {
-			//	log.Println(packet)
-			//}
+			if *verbose {
+				log.Println(packet)
+			}
 
 			if packet.NetworkLayer() == nil || packet.TransportLayer() == nil || packet.TransportLayer().LayerType() != layers.LayerTypeTCP {
 				if *verbose {
