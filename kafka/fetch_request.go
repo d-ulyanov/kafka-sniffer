@@ -1,8 +1,6 @@
 package kafka
 
-import (
-	"log"
-)
+import "github.com/d-ulyanov/kafka-sniffer/metrics"
 
 type fetchRequestBlock struct {
 	Version            int16
@@ -30,7 +28,6 @@ func (b *fetchRequestBlock) decode(pd PacketDecoder, version int16) (err error) 
 	if b.maxBytes, err = pd.getInt32(); err != nil {
 		return err
 	}
-	log.Println(*b)
 	return nil
 }
 
@@ -59,6 +56,13 @@ func (r *FetchRequest) ExtractTopics() []string {
 	}
 
 	return topics
+}
+
+func (r *FetchRequest) GetRequestedBlocksCount() (blocksCount int) {
+	for _, partition := range r.blocks {
+		blocksCount += len(partition)
+	}
+	return
 }
 
 func (r *FetchRequest) Decode(pd PacketDecoder, version int16) (err error) {
@@ -161,6 +165,13 @@ func (r *FetchRequest) Decode(pd PacketDecoder, version int16) (err error) {
 	}
 
 	return nil
+}
+
+func (r *FetchRequest) SendClientMetrics(srcHost string) {
+	metrics.RequestsCount.WithLabelValues(srcHost, "fetch").Inc()
+
+	blocksCount := r.GetRequestedBlocksCount()
+	metrics.BlocksRequested.WithLabelValues(srcHost).Add(float64(blocksCount))
 }
 
 func (r *FetchRequest) key() int16 {

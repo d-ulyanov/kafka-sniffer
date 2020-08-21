@@ -1,5 +1,7 @@
 package kafka
 
+import "github.com/d-ulyanov/kafka-sniffer/metrics"
+
 // RequiredAcks is used in Produce Requests to tell the broker how many replica acknowledgements
 // it must see before responding. Any of the constants defined here are valid. On broker versions
 // prior to 0.8.2.0 any other positive int16 is also valid (the broker will wait for that many
@@ -126,6 +128,16 @@ func (r *ProduceRequest) RecordsSize() (recordsSize int) {
 		}
 	}
 	return
+}
+
+func (r *ProduceRequest) SendClientMetrics(srcHost string) {
+	metrics.RequestsCount.WithLabelValues(srcHost, "produce").Inc()
+
+	batchSize := r.RecordsSize()
+	metrics.ProducerBatchSize.WithLabelValues(srcHost).Add(float64(batchSize))
+
+	batchLen := r.RecordsLen()
+	metrics.ProducerBatchLen.WithLabelValues(srcHost).Add(float64(batchLen))
 }
 
 func (r *ProduceRequest) requiredVersion() KafkaVersion {

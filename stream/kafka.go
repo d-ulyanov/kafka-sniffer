@@ -83,17 +83,10 @@ func (h *KafkaStream) run() {
 			log.Printf("got request, key: %d, version: %d, correlationID: %d, clientID: %s\n", req.Key, req.Version, req.CorrelationID, req.ClientID)
 		}
 
+		req.Body.SendClientMetrics(srcHost)
 
 		switch body := req.Body.(type) {
 		case *kafka.ProduceRequest:
-			metrics.ProducerRequestsCount.WithLabelValues(srcHost).Inc()
-
-			batchSize := body.RecordsSize()
-			metrics.ProducerBatchSize.WithLabelValues(srcHost).Add(float64(batchSize))
-
-			batchLen := body.RecordsLen()
-			metrics.ProducerBatchLen.WithLabelValues(srcHost).Add(float64(batchLen))
-
 			for _, topic := range body.ExtractTopics() {
 				if h.verbose {
 					log.Printf("client %s:%s wrote to topic %s", srcHost, srcPort, topic)

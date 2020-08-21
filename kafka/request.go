@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/d-ulyanov/kafka-sniffer/metrics"
 	"io"
 )
 
@@ -14,6 +15,7 @@ var (
 
 type ProtocolBody interface {
 	versionedDecoder
+	metrics.ClientMetricsSender
 	key() int16
 	version() int16
 	requiredVersion() KafkaVersion
