@@ -1,12 +1,12 @@
 package version
 
 var (
-	// Version is kafka version
+	// Version is project version
 	Version string
 
-	// Revision is kafka revision
+	// Revision is project revision
 	Revision string
 
-	// Branch is kafka branch
+	// Branch is project branch
 	Branch string
 )

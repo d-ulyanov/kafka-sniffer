@@ -42,7 +42,7 @@ func (cc CompressionCodec) String() string {
 	}[int(cc)]
 }
 
-//Message is a kafka message type
+// Message is a kafka message type
 type Message struct {
 	Codec            CompressionCodec // codec used to compress the message contents
 	CompressionLevel int              // compression level

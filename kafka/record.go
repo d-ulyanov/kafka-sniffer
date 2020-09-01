@@ -27,7 +27,7 @@ func (h *RecordHeader) Decode(pd PacketDecoder) (err error) {
 	return nil
 }
 
-//Record is kafka record type
+// Record is kafka record type
 type Record struct {
 	Headers []*RecordHeader
 
