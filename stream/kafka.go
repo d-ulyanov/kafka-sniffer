@@ -20,10 +20,12 @@ type KafkaStreamFactory struct {
 	verbose        bool
 }
 
+// NewKafkaStreamFactory assembles streams
 func NewKafkaStreamFactory(metricsStorage *metrics.Storage, verbose bool) *KafkaStreamFactory {
 	return &KafkaStreamFactory{metricsStorage: metricsStorage, verbose: verbose}
 }
 
+// New assembles new stream
 func (h *KafkaStreamFactory) New(net, transport gopacket.Flow) tcpassembly.Stream {
 	s := &KafkaStream{
 		net:            net,
@@ -83,7 +85,7 @@ func (h *KafkaStream) run() {
 			log.Printf("got request, key: %d, version: %d, correlationID: %d, clientID: %s\n", req.Key, req.Version, req.CorrelationID, req.ClientID)
 		}
 
-		req.Body.SendClientMetrics(srcHost)
+		req.Body.CollectClientMetrics(srcHost)
 
 		switch body := req.Body.(type) {
 		case *kafka.ProduceRequest:

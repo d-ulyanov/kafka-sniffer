@@ -19,10 +19,12 @@ type Encoder interface {
 // as the Key or Value in a ProducerMessage.
 type StringEncoder string
 
+// Encode returns encoded bytes array
 func (s StringEncoder) Encode() ([]byte, error) {
 	return []byte(s), nil
 }
 
+// Length returns length in bytes
 func (s StringEncoder) Length() int {
 	return len(s)
 }
@@ -31,10 +33,12 @@ func (s StringEncoder) Length() int {
 // as the Key or Value in a ProducerMessage.
 type ByteEncoder []byte
 
+// Encode returns encoded bytes array
 func (b ByteEncoder) Encode() ([]byte, error) {
 	return b, nil
 }
 
+// Length returns length in bytes
 func (b ByteEncoder) Length() int {
 	return len(b)
 }

@@ -121,6 +121,7 @@ func Decode(buf []byte, in decoder) error {
 	return nil
 }
 
+// RealDecoder implements PacketDecoder
 type RealDecoder struct {
 	raw   []byte
 	off   int

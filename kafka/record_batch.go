@@ -19,6 +19,7 @@ func (e recordsArray) Decode(pd PacketDecoder) error {
 	return nil
 }
 
+// RecordBatch are records from one kafka request
 type RecordBatch struct {
 	FirstOffset           int64
 	PartitionLeaderEpoch  int32

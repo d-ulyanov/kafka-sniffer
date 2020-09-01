@@ -19,6 +19,7 @@ type Storage struct {
 	activeConnectionsTotal    *metric
 }
 
+// NewStorage creates new Storage
 func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Storage {
 	var s = &Storage{
 		producerTopicRelationInfo: newMetric(prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -47,14 +48,17 @@ func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Sto
 	return s
 }
 
+// AddProducerTopicRelationInfo adds (producer, topic) pair to metrics
 func (s *Storage) AddProducerTopicRelationInfo(producer, topic string) {
 	s.producerTopicRelationInfo.set(producer, topic)
 }
 
+// AddConsumerTopicRelationInfo adds (consumer, topic) pair to metrics
 func (s *Storage) AddConsumerTopicRelationInfo(consumer, topic string) {
 	s.consumerTopicRelationInfo.set(consumer, topic)
 }
 
+// AddActiveConnectionsTotal adds incoming connection
 func (s *Storage) AddActiveConnectionsTotal(clientIP string) {
 	s.activeConnectionsTotal.inc(clientIP)
 }

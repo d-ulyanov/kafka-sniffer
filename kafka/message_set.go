@@ -1,5 +1,6 @@
 package kafka
 
+// MessageBlock represents a part of request with message
 type MessageBlock struct {
 	Offset int64
 	Msg    *Message
@@ -14,6 +15,7 @@ func (msb *MessageBlock) Messages() []*MessageBlock {
 	return []*MessageBlock{msb}
 }
 
+// Decode decodes message block from packet
 func (msb *MessageBlock) Decode(pd PacketDecoder) (err error) {
 	if msb.Offset, err = pd.getInt64(); err != nil {
 		return err
@@ -38,12 +40,14 @@ func (msb *MessageBlock) Decode(pd PacketDecoder) (err error) {
 	return nil
 }
 
+// MessageSet is a replacement for RecordBatch in older versions
 type MessageSet struct {
 	PartialTrailingMessage bool // whether the set on the wire contained an incomplete trailing MessageBlock
 	OverflowMessage        bool // whether the set on the wire contained an overflow message
 	Messages               []*MessageBlock
 }
 
+// Decode retrieves message set from packet
 func (ms *MessageSet) Decode(pd PacketDecoder) (err error) {
 	ms.Messages = nil
 

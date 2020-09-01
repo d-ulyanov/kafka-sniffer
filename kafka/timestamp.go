@@ -2,10 +2,12 @@ package kafka
 
 import "time"
 
+// Timestamp is a structure representing UNIX timestamp
 type Timestamp struct {
 	*time.Time
 }
 
+// Decode decodes timestamp from packet
 func (t Timestamp) Decode(pd PacketDecoder) error {
 	millis, err := pd.getInt64()
 	if err != nil {

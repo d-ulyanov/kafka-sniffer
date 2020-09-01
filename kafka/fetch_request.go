@@ -49,8 +49,10 @@ type FetchRequest struct {
 	RackID       string
 }
 
+// IsolationLevel is a setting for reliability
 type IsolationLevel int8
 
+// ExtractTopics returns a list of all topics from request
 func (r *FetchRequest) ExtractTopics() []string {
 	var topics []string
 	for k := range r.blocks {
@@ -60,6 +62,7 @@ func (r *FetchRequest) ExtractTopics() []string {
 	return topics
 }
 
+// GetRequestedBlocksCount returns a total amount of blocks from fetch request
 func (r *FetchRequest) GetRequestedBlocksCount() (blocksCount int) {
 	for _, partition := range r.blocks {
 		blocksCount += len(partition)
@@ -67,6 +70,7 @@ func (r *FetchRequest) GetRequestedBlocksCount() (blocksCount int) {
 	return
 }
 
+// Decode retrieves kafka fetch request from packet
 func (r *FetchRequest) Decode(pd PacketDecoder, version int16) (err error) {
 	r.Version = version
 
@@ -85,7 +89,8 @@ func (r *FetchRequest) Decode(pd PacketDecoder, version int16) (err error) {
 		}
 	}
 	if r.Version >= 4 {
-		isolation, err := pd.getInt8()
+		var isolation int8
+		isolation, err = pd.getInt8()
 		if err != nil {
 			return err
 		}
@@ -110,17 +115,20 @@ func (r *FetchRequest) Decode(pd PacketDecoder, version int16) (err error) {
 	}
 	r.blocks = make(map[string]map[int32]*fetchRequestBlock)
 	for i := 0; i < topicCount; i++ {
-		topic, err := pd.getString()
+		var topic string
+		topic, err = pd.getString()
 		if err != nil {
 			return err
 		}
-		partitionCount, err := pd.getArrayLength()
+		var partitionCount int
+		partitionCount, err = pd.getArrayLength()
 		if err != nil {
 			return err
 		}
 		r.blocks[topic] = make(map[int32]*fetchRequestBlock)
 		for j := 0; j < partitionCount; j++ {
-			partition, err := pd.getInt32()
+			var partition int32
+			partition, err = pd.getInt32()
 			if err != nil {
 				return err
 			}
@@ -133,24 +141,28 @@ func (r *FetchRequest) Decode(pd PacketDecoder, version int16) (err error) {
 	}
 
 	if r.Version >= 7 {
-		forgottenCount, err := pd.getArrayLength()
+		var forgottenCount int
+		forgottenCount, err = pd.getArrayLength()
 		if err != nil {
 			return err
 		}
 		r.forgotten = make(map[string][]int32)
 		for i := 0; i < forgottenCount; i++ {
-			topic, err := pd.getString()
+			var topic string
+			topic, err = pd.getString()
 			if err != nil {
 				return err
 			}
-			partitionCount, err := pd.getArrayLength()
+			var partitionCount int
+			partitionCount, err = pd.getArrayLength()
 			if err != nil {
 				return err
 			}
 			r.forgotten[topic] = make([]int32, partitionCount)
 
 			for j := 0; j < partitionCount; j++ {
-				partition, err := pd.getInt32()
+				var partition int32
+				partition, err = pd.getInt32()
 				if err != nil {
 					return err
 				}
@@ -169,7 +181,8 @@ func (r *FetchRequest) Decode(pd PacketDecoder, version int16) (err error) {
 	return nil
 }
 
-func (r *FetchRequest) SendClientMetrics(srcHost string) {
+// CollectClientMetrics collects metrics associated with client
+func (r *FetchRequest) CollectClientMetrics(srcHost string) {
 	metrics.RequestsCount.WithLabelValues(srcHost, "fetch").Inc()
 
 	blocksCount := r.GetRequestedBlocksCount()
@@ -211,6 +224,7 @@ func (r *FetchRequest) requiredVersion() Version {
 	}
 }
 
+// AddBlock adds message block to fetch request
 func (r *FetchRequest) AddBlock(topic string, partitionID int32, fetchOffset int64, maxBytes int32) {
 	if r.blocks == nil {
 		r.blocks = make(map[string]map[int32]*fetchRequestBlock)

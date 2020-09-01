@@ -56,6 +56,7 @@ type Message struct {
 	compressedSize int // used for computing the compression ratio metrics
 }
 
+// Decode decodes message from packet
 func (m *Message) Decode(pd PacketDecoder) (err error) {
 	crc32Decoder := acquireCrc32Field(crcIEEE)
 	defer releaseCrc32Field(crc32Decoder)

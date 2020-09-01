@@ -1,6 +1,8 @@
 package kafka
 
-import "github.com/d-ulyanov/kafka-sniffer/metrics"
+import (
+	"github.com/d-ulyanov/kafka-sniffer/metrics"
+)
 
 // RequiredAcks is used in Produce Requests to tell the broker how many replica acknowledgements
 // it must see before responding. Any of the constants defined here are valid. On broker versions
@@ -9,6 +11,7 @@ import "github.com/d-ulyanov/kafka-sniffer/metrics"
 // by setting the `min.isr` value in the brokers configuration).
 type RequiredAcks int16
 
+// ProduceRequest is a type of request in kafka
 type ProduceRequest struct {
 	TransactionalID *string
 	RequiredAcks    RequiredAcks
@@ -17,6 +20,7 @@ type ProduceRequest struct {
 	records         map[string]map[int32]Records
 }
 
+// Decode decodes kafka produce request from packet
 func (r *ProduceRequest) Decode(pd PacketDecoder, version int16) error {
 	r.Version = version
 
@@ -100,6 +104,7 @@ func (r *ProduceRequest) ExtractTopics() []string {
 	return out
 }
 
+// RecordsLen retrieves total size in bytes of all records in message
 func (r *ProduceRequest) RecordsLen() (recordsLen int) {
 	for _, partition := range r.records {
 		for _, record := range partition {
@@ -114,6 +119,7 @@ func (r *ProduceRequest) RecordsLen() (recordsLen int) {
 	return
 }
 
+// RecordsSize retrieves total number of records in batch
 func (r *ProduceRequest) RecordsSize() (recordsSize int) {
 	for _, partition := range r.records {
 		for _, record := range partition {
@@ -130,7 +136,8 @@ func (r *ProduceRequest) RecordsSize() (recordsSize int) {
 	return
 }
 
-func (r *ProduceRequest) SendClientMetrics(srcHost string) {
+// CollectClientMetrics collects metrics associated with client
+func (r *ProduceRequest) CollectClientMetrics(srcHost string) {
 	metrics.RequestsCount.WithLabelValues(srcHost, "produce").Inc()
 
 	batchSize := r.RecordsSize()

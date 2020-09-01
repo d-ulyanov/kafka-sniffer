@@ -15,6 +15,7 @@ type RecordHeader struct {
 	Value []byte
 }
 
+// Decode retrieves record header from packet
 func (h *RecordHeader) Decode(pd PacketDecoder) (err error) {
 	if h.Key, err = pd.getVarintBytes(); err != nil {
 		return err
@@ -38,6 +39,7 @@ type Record struct {
 	length         varintLengthField
 }
 
+// Decode decodes record from packet
 func (r *Record) Decode(pd PacketDecoder) (err error) {
 	if err = pd.push(&r.length); err != nil {
 		return err

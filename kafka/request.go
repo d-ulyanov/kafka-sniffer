@@ -14,14 +14,16 @@ var (
 	MaxRequestSize int32 = 100 * 1024 * 1024
 )
 
+// ProtocolBody represents body of kafka request
 type ProtocolBody interface {
 	versionedDecoder
-	metrics.ClientMetricsSender
+	metrics.ClientMetricsCollector
 	key() int16
 	version() int16
 	requiredVersion() Version
 }
 
+// Request is a kafka request
 type Request struct {
 	// Key is a Kafka api key - it defines kind of request (why it called api key?)
 	// List of api keys see here: https://kafka.apache.org/protocol#protocol_api_keys
@@ -42,6 +44,7 @@ type Request struct {
 	UsePreparedKeyVersion bool
 }
 
+// Decode decodes request from packet
 func (r *Request) Decode(pd PacketDecoder) (err error) {
 	if !r.UsePreparedKeyVersion {
 		r.Key, err = pd.getInt16() // +2 bytes
@@ -86,18 +89,22 @@ func (r *Request) Decode(pd PacketDecoder) (err error) {
 	return r.Body.Decode(pd, r.Version)
 }
 
+// DecodeLength decodes length from packet
 func DecodeLength(encoded []byte) int32 {
 	return int32(binary.BigEndian.Uint32(encoded[:4]))
 }
 
+// DecodeKey decodes key from packet. For terminology see kafka reference
 func DecodeKey(encoded []byte) int16 {
 	return int16(binary.BigEndian.Uint16(encoded[4:6]))
 }
 
+// DecodeVersion descodes version from packet
 func DecodeVersion(encoded []byte) int16 {
 	return int16(binary.BigEndian.Uint16(encoded[6:]))
 }
 
+// DecodeRequest decodes request from packets delivered by reader
 func DecodeRequest(r io.Reader) (*Request, int, error) {
 	var (
 		needReadBytes = 8
