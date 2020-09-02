@@ -2,6 +2,7 @@ package stream
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"log"
 
@@ -19,10 +20,12 @@ type KafkaStreamFactory struct {
 	verbose        bool
 }
 
+// NewKafkaStreamFactory assembles streams
 func NewKafkaStreamFactory(metricsStorage *metrics.Storage, verbose bool) *KafkaStreamFactory {
 	return &KafkaStreamFactory{metricsStorage: metricsStorage, verbose: verbose}
 }
 
+// New assembles new stream
 func (h *KafkaStreamFactory) New(net, transport gopacket.Flow) tcpassembly.Stream {
 	s := &KafkaStream{
 		net:            net,
@@ -46,8 +49,13 @@ type KafkaStream struct {
 }
 
 func (h *KafkaStream) run() {
-	log.Printf("%s:%s -> %s:%s", h.net.Src(), h.transport.Src(), h.net.Dst(), h.transport.Dst())
-	log.Printf("%s:%s -> %s:%s", h.net.Dst(), h.transport.Dst(), h.net.Src(), h.transport.Src())
+	srcHost := fmt.Sprint(h.net.Src())
+	srcPort := fmt.Sprint(h.transport.Src())
+	dstHost := fmt.Sprint(h.net.Dst())
+	dstPort := fmt.Sprint(h.transport.Dst())
+
+	log.Printf("%s:%s -> %s:%s", srcHost, srcPort, dstHost, dstPort)
+	log.Printf("%s:%s -> %s:%s", dstHost, dstPort, srcHost, srcPort)
 
 	buf := bufio.NewReaderSize(&h.r, 2<<15) // 65k
 
@@ -77,11 +85,13 @@ func (h *KafkaStream) run() {
 			log.Printf("got request, key: %d, version: %d, correlationID: %d, clientID: %s\n", req.Key, req.Version, req.CorrelationID, req.ClientID)
 		}
 
+		req.Body.CollectClientMetrics(srcHost)
+
 		switch body := req.Body.(type) {
 		case *kafka.ProduceRequest:
 			for _, topic := range body.ExtractTopics() {
 				if h.verbose {
-					log.Printf("client %s:%s wrote to topic %s", h.net.Src(), h.transport.Src(), topic)
+					log.Printf("client %s:%s wrote to topic %s", srcHost, srcPort, topic)
 				}
 
 				// add producer and topic relation info into metric

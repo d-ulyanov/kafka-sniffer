@@ -1,7 +1,12 @@
 package version
 
 var (
-	Version  string
+	// Version is project version
+	Version string
+
+	// Revision is project revision
 	Revision string
-	Branch   string
+
+	// Branch is project branch
+	Branch string
 )

@@ -10,8 +10,8 @@ import (
 
 const namespace = "kafka_sniffer"
 
-// Storage contains prometheus metrics that have expiration time. When expiration time is succeeded,
-// metric with specific labels will be removed from storage. It is needed to keep only fresh producer,
+// Storage contains prometheus metrics that have expiration time. When expiration time is exceeded,
+// metric with specific labels is removed from storage. It is needed to keep only fresh producer,
 // topic and consumer relations.
 type Storage struct {
 	producerTopicRelationInfo *metric
@@ -19,18 +19,19 @@ type Storage struct {
 	activeConnectionsTotal    *metric
 }
 
+// NewStorage creates new Storage
 func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Storage {
 	var s = &Storage{
 		producerTopicRelationInfo: newMetric(prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name:      "producer_topic_relation_info",
 			Help:      "Relation information between producer and topic",
-		}, []string{"producer", "topic"}), expireTime),
+		}, []string{"client_ip", "topic"}), expireTime),
 		consumerTopicRelationInfo: newMetric(prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name:      "consumer_topic_relation_info",
 			Help:      "Relation information between consumer and topic",
-		}, []string{"consumer", "topic"}), expireTime),
+		}, []string{"client_ip", "topic"}), expireTime),
 		activeConnectionsTotal: newMetric(prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name:      "active_connections_total",
@@ -47,14 +48,17 @@ func NewStorage(registerer prometheus.Registerer, expireTime time.Duration) *Sto
 	return s
 }
 
+// AddProducerTopicRelationInfo adds (producer, topic) pair to metrics
 func (s *Storage) AddProducerTopicRelationInfo(producer, topic string) {
 	s.producerTopicRelationInfo.set(producer, topic)
 }
 
+// AddConsumerTopicRelationInfo adds (consumer, topic) pair to metrics
 func (s *Storage) AddConsumerTopicRelationInfo(consumer, topic string) {
 	s.consumerTopicRelationInfo.set(consumer, topic)
 }
 
+// AddActiveConnectionsTotal adds incoming connection
 func (s *Storage) AddActiveConnectionsTotal(clientIP string) {
 	s.activeConnectionsTotal.inc(clientIP)
 }
@@ -99,26 +103,23 @@ func (m *metric) inc(labels ...string) {
 // update updates relations or creates new one
 func (m *metric) update(labels ...string) {
 	m.mux.Lock()
+	defer m.mux.Unlock()
 	if r, ok := m.relations[genLabelKey(labels...)]; ok {
 		r.refresh()
 	} else {
 		m.relations[genLabelKey(labels...)] = newRelation(m.expireTime, labels, m.expCh)
 	}
-	m.mux.Unlock()
 }
 
 // runExpiration removes metric by specific label values and removes relation
 func (m *metric) runExpiration() {
-	for {
-		select {
-		case labels := <-m.expCh:
-			m.promMetric.DeleteLabelValues(labels...)
+	for labels := range m.expCh {
+		m.promMetric.DeleteLabelValues(labels...)
 
-			// remove relation
-			m.mux.Lock()
-			delete(m.relations, genLabelKey(labels...))
-			m.mux.Unlock()
-		}
+		// remove relation
+		m.mux.Lock()
+		delete(m.relations, genLabelKey(labels...))
+		m.mux.Unlock()
 	}
 }
 
@@ -149,24 +150,19 @@ func newRelation(expireTime time.Duration, labels []string, expCh chan []string)
 func (c *relation) run() {
 	c.refresh()
 
-	for {
-		select {
-		case <-c.timer.C:
-			c.expCh <- c.labels
-			return
-		}
-	}
+	<-c.timer.C
+	c.expCh <- c.labels
 }
 
 // refresh resets timer or create new one
 func (c *relation) refresh() {
 	c.mux.Lock()
+	defer c.mux.Unlock()
 	if c.timer == nil {
 		c.timer = time.NewTimer(c.expireTime)
 	} else {
 		c.timer.Reset(c.expireTime)
 	}
-	c.mux.Unlock()
 }
 
 func genLabelKey(labels ...string) string {

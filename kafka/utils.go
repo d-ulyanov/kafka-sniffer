@@ -19,10 +19,12 @@ type Encoder interface {
 // as the Key or Value in a ProducerMessage.
 type StringEncoder string
 
+// Encode returns encoded bytes array
 func (s StringEncoder) Encode() ([]byte, error) {
 	return []byte(s), nil
 }
 
+// Length returns length in bytes
 func (s StringEncoder) Length() int {
 	return len(s)
 }
@@ -31,23 +33,25 @@ func (s StringEncoder) Length() int {
 // as the Key or Value in a ProducerMessage.
 type ByteEncoder []byte
 
+// Encode returns encoded bytes array
 func (b ByteEncoder) Encode() ([]byte, error) {
 	return b, nil
 }
 
+// Length returns length in bytes
 func (b ByteEncoder) Length() int {
 	return len(b)
 }
 
-// KafkaVersion instances represent versions of the upstream Kafka broker.
-type KafkaVersion struct {
+// Version instances represent versions of the upstream Kafka broker.
+type Version struct {
 	// it's a struct rather than just typing the array directly to make it opaque and stop people
 	// generating their own arbitrary versions
 	version [4]uint
 }
 
-func newKafkaVersion(major, minor, veryMinor, patch uint) KafkaVersion {
-	return KafkaVersion{
+func newKafkaVersion(major, minor, veryMinor, patch uint) Version {
+	return Version{
 		version: [4]uint{major, minor, veryMinor, patch},
 	}
 }
@@ -56,7 +60,7 @@ func newKafkaVersion(major, minor, veryMinor, patch uint) KafkaVersion {
 // greater than or equal to the version passed in:
 //    V1.IsAtLeast(V2) // false
 //    V2.IsAtLeast(V1) // true
-func (v KafkaVersion) IsAtLeast(other KafkaVersion) bool {
+func (v Version) IsAtLeast(other Version) bool {
 	for i := range v.version {
 		if v.version[i] > other.version[i] {
 			return true
@@ -85,7 +89,7 @@ var (
 	MaxVersion = V2_4_0_0
 )
 
-func (v KafkaVersion) String() string {
+func (v Version) String() string {
 	if v.version[0] == 0 {
 		return fmt.Sprintf("0.%d.%d.%d", v.version[1], v.version[2], v.version[3])
 	}
