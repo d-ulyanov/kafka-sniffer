@@ -9,7 +9,7 @@ const (
 	controlMask         = 0x20
 )
 
-//RecordHeader stores key and value for a record header
+// RecordHeader stores key and value for a record header
 type RecordHeader struct {
 	Key   []byte
 	Value []byte

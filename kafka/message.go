@@ -32,6 +32,7 @@ const (
 // CompressionCodec represents the various compression codecs recognized by Kafka in messages.
 type CompressionCodec int8
 
+// String returns string representation of CompressionCodec
 func (cc CompressionCodec) String() string {
 	return []string{
 		"none",

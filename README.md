@@ -45,7 +45,7 @@ docker run --rm --network host kafka-sniffer:latest -i lo0
 
 ## Run Kafka in docker (bitnami Kafka + Zookeeper)
 ```
-docker-compose ./local/docker-compose.yml up
+docker-compose ./etc/docker-compose.yml up
 ```
 
 ## Run Kafka in minicube (Strimzi Kafka Operator)
